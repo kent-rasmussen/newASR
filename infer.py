@@ -129,7 +129,13 @@ if __name__ == '__main__':
             for c in checkpoints:
                 modellist.insert(modellist.index(m),c)
     # print('\n'.join(modellist))
+
     models={} #because this loads multiple models first, store in dict.
+    if len(sys.argv)>2:
+        modellist=sys.argv[1:2]
+        files=sys.argv[2:]
+    elif sys.argv[1:]:
+        files=sys.argv[1:]
     for model in modellist:
         if 'checkpoint' in model: #keep model name and checkpoint
             m=os.path.join(os.path.basename(os.path.dirname(model)
@@ -139,16 +145,17 @@ if __name__ == '__main__':
         models[m]=Infer(model)
         # if hasattr(models[m],'model'):
         #     print(f"{model} loaded")
-    if sys.argv[1:]:
-        files=sys.argv[1:]
     for file in files:
+        titled=False
         print(f"Inferring {file}")
-        models[m].standard(file)
         # if os.path.isfile(os.path.splitext(file)[0]+'.txt'):
         #     with open(os.path.splitext(file)[0]+'.txt') as f:
         #         print("Good Transcription:",f.read())
         for i in models:
             print(f"Using {i} ({models[i]})")
             if models[i].loaded:
+                if not titled:
+                    models[i].standard(file)
+                    titled=True
                 output=models[i](file)
                 print(i+':', output)
