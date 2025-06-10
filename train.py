@@ -18,7 +18,10 @@ import zipfile
 from transformers.pytorch_utils import Conv1D
 # transformers
 import huggingface_hub
-import readtoken
+try:
+    import readtoken
+except ModuleNotFoundError:
+    print("readtoken.py not found")
 debug=False
 # self.token=readtoken.token
 # import pushtoken
@@ -89,7 +92,6 @@ class Data:
                 f"Rows: {self.dbd.num_rows}")
         # print(f"first row: {self.dbd['train'][0]}")
     def load_dbd(self):
-        import readtoken
         self.dbd = DatasetDict()
         splits=list(map(lambda x:x+f'[:{self.max_data_rows}]',self.data_splits))
         print(f"Using data splits {splits}")
@@ -114,7 +116,6 @@ class Data:
                 f"({self.fqdatasetname}) online/cached")
         print(f"Rows: {self.dbd.num_rows}")
     def load_dbd_from_all(self):
-        import readtoken
         """If you don’t provide a split argument to datasets.load_dataset(),
         this method will return a dictionary containing a datasets for each
         split in the dataset."""
