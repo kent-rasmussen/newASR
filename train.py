@@ -1101,7 +1101,10 @@ class Options(object):
                         ]
         for *args,kwargs in default_list:
             parser.add_argument(*args,**kwargs)
-        self.args = vars(parser.parse_args())
+        if len(sys.argv)<2:
+            self.args = {}
+        else:
+            self.args = vars(parser.parse_args())
         # This section converts various settings from what makes sense to the
         # user to what the computer uses, especially where default is true,
         # rather than false (unspecified)
