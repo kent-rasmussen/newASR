@@ -12,6 +12,7 @@ import re
 import numpy
 import random
 import json
+import sys
 import argparse
 import pathlib
 import zipfile
