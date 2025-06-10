@@ -199,6 +199,8 @@ if __name__ == '__main__':
             'make_vocab':True, # always for CTC
         })
     if 'google.colab' in sys.modules:
+        print("It looks like we're running in a colab instance, so setting "
+            "some variables now.")
         options.args.update({
                 'cache_dir':'.',
             })
