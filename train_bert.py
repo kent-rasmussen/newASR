@@ -197,6 +197,10 @@ if __name__ == '__main__':
     options.args.update({
             'make_vocab':True, # always for CTC
         })
+    if 'google.colab' in sys.modules:
+        options.args.update({
+                'cache_dir':'.', 
+            })
 
     model_type={
                 'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
