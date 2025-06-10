@@ -1169,7 +1169,6 @@ if __name__ == '__main__':
                 }
     options=Options()
     names=Nomenclature(
-        my_hf_login='kent-rasmussen',
         fqbasemodelname="facebook/w2v-bert-2.0",
         metric_name="cer",
         **model_type,
