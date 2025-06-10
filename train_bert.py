@@ -199,7 +199,7 @@ if __name__ == '__main__':
         })
     if 'google.colab' in sys.modules:
         options.args.update({
-                'cache_dir':'.', 
+                'cache_dir':'.',
             })
 
     model_type={
