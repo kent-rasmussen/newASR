@@ -978,7 +978,7 @@ class Options(object):
                             )
         default_list = [('-l', '--language-iso',
                             {'help':"ISO 639-3 (Ethnologue) code of language",
-                            'required':True
+                            # 'required':True
                         }),
                         ('-c', '--cache-dir',
                             {'help':"where models and data are stored locally"
