@@ -1,0 +1,6 @@
+token.py
+__pycache__
+.gradio
+env/
+results
+training_data
