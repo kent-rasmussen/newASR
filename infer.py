@@ -79,7 +79,7 @@ class Infer(object):
         return Wav2Vec2BertForCTC
     @marktime(do=time_model_load)
     def __init__(self,*repos):
-        if torch.cuda.is_available()
+        # if torch.cuda.is_available()
         self.repos=repos
         self.loaded=False
         # print(f"trying these repos: {str(repos).strip('(),')}")
