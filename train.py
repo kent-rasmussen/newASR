@@ -520,7 +520,7 @@ class Training():
             kwargs['per_device_train_batch_size']=16
         # increase by 2x per 2x decrease in batch size:
         #gradient_accumulation_steps:
-        gas=kwargs.get('per_device_train_batch_size')//16
+        gas=16//kwargs.get('per_device_train_batch_size')
         if not torch.cuda.is_available():
             kwargs['dataloader_pin_memory']=False
         return self.training_args_fn(
