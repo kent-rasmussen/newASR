@@ -1195,9 +1195,14 @@ if __name__ == '__main__':
                 'compute_metrics':compute_metrics_bert,
                 }
     options=Options()
+    options.args.update({
+            'language_iso':'gnd',
+            'cache_dir':'.',
+            'data_file_prefixes':['lexicon_41','examples_300'],
+            'train':True
+        })
     names=Nomenclature(
         fqbasemodelname="facebook/w2v-bert-2.0",
-        metric_name="cer",
         **model_type,
         **trainer_type,
         # **options,
@@ -1231,13 +1236,13 @@ if __name__ == '__main__':
         data.show_dimensions_preprocessed()
         processor.do_prepare_dataset(data)
         data.cleanup()
-        if options.get('push_to_hub'):
+        if options.args.get('push_to_hub'):
             processor.push_to_hub(fqmodelname)
         #make this match try results: a transformers object
         processor=processor.processor
     try:
         print(f"Looking for saved {names.modelname} model")
-        assert options.get('remake_model') is False
+        assert options.args.get('remake_model') is False
         model=names.getmodel_fn.from_pretrained(
                                                 names.modelname,
                                                 cache_dir=names.cache_dir
