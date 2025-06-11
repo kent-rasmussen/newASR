@@ -968,11 +968,16 @@ class Nomenclature():
         if self.train:
             self.dataset_name()
 class Options(object):
+    def has_argv(self):
+        """This is needed because colab adds an extra -f root argument, meaning
+        that it runs with len(sys.argv) = 3, without any visible user arguments
+        So this is true when neither in colab, nor without argv specified."""
+        return not bool('google.colab' in sys.modules
+                            or len(sys.argv) == 1)#just exe, no other args
     def __init__(self):
         self.default_list = [('-l', '--language-iso',
                             {'help':"ISO 639-3 (Ethnologue) code of language",
-                            'required':not bool('google.colab' in sys.modules
-                                                or len(sys.argv) == 1)#just exe
+                            'required':self.has_argv()
                         }),
                         ('-c', '--cache-dir',
                             {'help':"where models and data are stored locally"
@@ -1093,7 +1098,8 @@ class Options(object):
                                             'version':f'%(prog)s {version}'
                                         })
                         ]
-        if 'google.colab' in sys.modules: #no sys.argv here
+        if self.has_argv():#'google.colab' in sys.modules: #no sys.argv here
+            print(len(sys.argv) == 1)#just exe)
             self.defaults_only()
         else:
             self.parse_argv()
