@@ -1100,12 +1100,38 @@ class Options(object):
                                             'version':f'%(prog)s {version}'
                                         })
                         ]
-        for *args,kwargs in default_list:
-            parser.add_argument(*args,**kwargs)
-        if len(sys.argv)<2:
-            self.args = {}
+        if 'google.colab' in sys.modules: #no sys.argv here
+            self.defaults_only()
         else:
-            self.args = vars(parser.parse_args())
+            self.parse_argv()
+    def defaults_only(self):
+        def sanify_arg(x):
+            return x.strip('-').translate(str.maketrans('-','_'))
+        self.args={sanify_arg(arg):kwargs['default']
+            for *args,kwargs in self.default_list
+            for arg in args
+            if '--' in arg
+            if 'default' in kwargs
+        }
+        self.args.update({sanify_arg(arg):False #default!
+            for *args,kwargs in self.default_list
+            for arg in args
+            if '--' in arg
+            if 'action' in kwargs
+            if kwargs['action'] == 'store_true'
+        })
+    def parse_argv(self):
+        parser = argparse.ArgumentParser(
+                            prog='ASR_Trainer',
+                            description='This module programmatically trains Automatic '
+                            'Speech Recognition (ASR) modules, for scalable mass '
+                            'production with minimal training data.'
+                            '\nUsing various options, one can train, infer and push '
+                            'all in the same run, if desired.',
+                            )
+        for *args,kwargs in self.default_list:
+            parser.add_argument(*args,**kwargs)
+        self.args = vars(parser.parse_args())
         # This section converts various settings from what makes sense to the
         # user to what the computer uses, especially where default is true,
         # rather than false (unspecified)
