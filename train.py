@@ -972,8 +972,10 @@ class Options(object):
         """This is needed because colab adds an extra -f root argument, meaning
         that it runs with len(sys.argv) = 3, without any visible user arguments
         So this is true when neither in colab, nor without argv specified."""
-        return not bool('google.colab' in sys.modules
+        val=not bool('google.colab' in sys.modules
                             or len(sys.argv) == 1)#just exe, no other args
+        print("Running with arguments:",val)
+        return val
     def __init__(self):
         self.default_list = [('-l', '--language-iso',
                             {'help':"ISO 639-3 (Ethnologue) code of language",
