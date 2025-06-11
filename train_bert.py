@@ -196,7 +196,13 @@ def do_run(model_type,trainer_type,options):
 if __name__ == '__main__':
     options=train.Options()
     options.args.update({
-            'make_vocab':True, # always for CTC
+            'language_iso':'gnd',
+            'cache_dir':'.',
+            'dataset_code':'csv',
+            'data_file_prefixes':['lexicon_41','examples_300'],
+            'data_file_location':'training_data',
+            'train':True,
+            'refresh_data':True
         })
     if 'google.colab' in sys.modules:
         print("It looks like we're running in a colab instance, so setting "
