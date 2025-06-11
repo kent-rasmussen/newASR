@@ -969,17 +969,10 @@ class Nomenclature():
             self.dataset_name()
 class Options(object):
     def __init__(self):
-        parser = argparse.ArgumentParser(
-                            prog='ASR_Trainer',
-                            description='This module programmatically trains Automatic '
-                            'Speech Recognition (ASR) modules, for scalable mass '
-                            'production with minimal training data.'
-                            '\nUsing various options, one can train, infer and push '
-                            'all in the same run, if desired.',
-                            )
-        default_list = [('-l', '--language-iso',
+        self.default_list = [('-l', '--language-iso',
                             {'help':"ISO 639-3 (Ethnologue) code of language",
-                            # 'required':True
+                            'required':not bool('google.colab' in sys.modules
+                                                or len(sys.argv) == 1)#just exe
                         }),
                         ('-c', '--cache-dir',
                             {'help':"where models and data are stored locally"
