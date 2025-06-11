@@ -818,7 +818,7 @@ class Nomenclature():
                 exit()
         else:
             print("You really need to specify your language with an ISO code "
-            "(e.g., -l/--language)")
+            "(e.g., -l/--language-iso)")
             exit()
     def noparens_dirs(self,x):
         return '_'.join(x.translate(self.parens_dirs_dict).split(' '))
@@ -931,8 +931,8 @@ class Nomenclature():
         if not os.path.exists(os.environ['HF_HOME']):
             print("This is set up to run with a cache at "
                     f"{os.environ['HF_HOME']}, "
-                    "but it isn't found. Attach it, pass -c/--cache, or change "
-                    "the os.environ['HF_HOME'] variable.")
+                    "but it isn't found. Attach it, pass -c/--cache-dir, "
+                    "or change the os.environ['HF_HOME'] variable.")
             exit()
         self.dataset_dir=os.path.join(self.cache_dir,'datasets')
         self.hub_model_dir=os.path.join(self.cache_dir,'hub')
