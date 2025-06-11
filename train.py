@@ -976,7 +976,6 @@ class Options(object):
         So this is true when neither in colab, nor without argv specified."""
         val=not bool('google.colab' in sys.modules
                             or len(sys.argv) == 1)#just exe, no other args
-        print("Running with arguments:",val)
         return val
     def __init__(self):
         self.default_list = [('-l', '--language-iso',
