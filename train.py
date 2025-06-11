@@ -1002,7 +1002,7 @@ class Options(object):
                             {'help':"Train a new ASR model",
                             'action':'store_true'
                         }),
-                        ('--metric_name',
+                        ('--metric-name',
                             {'help':"Name of metric to evaluate ASR (e.g., "
                                 "word error rate; WER)",
                             'choices':['wer','cer'],
@@ -1071,10 +1071,10 @@ class Options(object):
                             {'help':"Use Quantization",
                             'action':'store_true'
                         }),
-                        ('--attention_dropout',{'default':0.0}),
-                        ('--hidden_dropout',{'default':0.0}),
-                        ('--feat_proj_dropout',{'default':0.0}),
-                        ('--mask_time_prob',{'default':0.0}),
+                        ('--attention-dropout',{'default':0.0}),
+                        ('--hidden-dropout',{'default':0.0}),
+                        ('--feat-proj-dropout',{'default':0.0}),
+                        ('--mask-time-prob',{'default':0.0}),
                         ('--layerdrop',{'default':0.0}),
                         ('--ctc-loss-reduction',
                             {'help':"ctc_loss_reduction",
