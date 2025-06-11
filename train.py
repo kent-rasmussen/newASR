@@ -1103,10 +1103,10 @@ class Options(object):
                                         })
                         ]
         if self.has_argv():#'google.colab' in sys.modules: #no sys.argv here
-            print(len(sys.argv) == 1)#just exe)
-            self.defaults_only()
-        else:
+            print("parsing args!")
             self.parse_argv()
+        else:
+            self.defaults_only()
     def defaults_only(self):
         def sanify_arg(x):
             return x.strip('-').translate(str.maketrans('-','_'))
