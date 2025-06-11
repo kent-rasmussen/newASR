@@ -22,7 +22,9 @@ import huggingface_hub
 try:
     import readtoken
 except ModuleNotFoundError:
-    print("readtoken.py not found")
+    print("To download some data sets from HuggingFace, provide your "
+        "read token in readtoken.py (not found), or log in with "
+        "notebook_login()")
 debug=False
 # self.token=readtoken.token
 # import pushtoken
