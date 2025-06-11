@@ -114,7 +114,7 @@ class TrainWrapper(object):
         if not isinstance(self.names,train.Nomenclature):
             print(f"Found ({type(self.names)}) names object; errors will follow.")
             names=train.Nomenclature()
-        self.data=train.Data(**self.names.datakwargs())
+        self.data=train.Data(**{**self.names.datakwargs(), 'make_vocab':True})
         self.get_processor()
         self.get_model()
         data_collator = self.names.data_collator_fn(processor=self.processor,
