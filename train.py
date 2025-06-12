@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # coding=UTF-8
-version='0.2'
 import os
 from datasets import load_dataset, load_from_disk
 from datasets import DatasetDict, concatenate_datasets, Audio
@@ -13,7 +12,6 @@ import numpy
 import random
 import json
 import sys
-import argparse
 import pathlib
 import zipfile
 from transformers.pytorch_utils import Conv1D
@@ -969,182 +967,6 @@ class Nomenclature():
                         ]
         if self.train:
             self.dataset_name()
-class Options(object):
-    def has_argv(self):
-        """This is needed because colab adds an extra -f root argument, meaning
-        that it runs with len(sys.argv) = 3, without any visible user arguments
-        So this is true when neither in colab, nor without argv specified."""
-        val=not bool('google.colab' in sys.modules
-                            or len(sys.argv) == 1)#just exe, no other args
-        return val
-    def __init__(self):
-        self.default_list = [('-l', '--language-iso',
-                            {'help':"ISO 639-3 (Ethnologue) code of language",
-                            'required':self.has_argv()
-                        }),
-                        ('-c', '--cache-dir',
-                            {'help':"where models and data are stored locally"
-                            #Yes, this is redundant, but matches Huggingface use
-                            }),
-                        ('-p', '--push-to-hub',
-                            {'help':"Store model and processor on HuggingFace",
-                            'action':'store_true'
-                        }),
-                        ('--hub-private-repo',
-                            {'help':"Store model and processor on HuggingFace "
-                                    "privately",
-                            'action':'store_true'
-                        }),
-                        ('--my-hf-login',
-                            {'help':"User login for hugging face "
-                                        "(for downloads and pushing) ",
-                        }),
-                        ('-t', '--train',
-                            {'help':"Train a new ASR model",
-                            'action':'store_true'
-                        }),
-                        ('--metric-name',
-                            {'help':"Name of metric to evaluate ASR (e.g., "
-                                "word error rate; WER)",
-                            'choices':['wer','cer'],
-                            'default':'wer'
-                        }),
-                        ('--remake_processor',
-                            {'help':"Remake Data pre-processor and tokenizer "
-                                    "(even if found)",
-                            'action':'store_true'
-                        }),
-                        ('-d', '--data-file-prefix',
-                            {'help':"prefix for data archives (multiple OK)",
-                            'action':'append',
-                            'dest':'data_file_prefixes'
-                        }),
-                        ('--dataset-code',
-                            {'help':"data source (e.g., csv: comma separated, "
-                                "mcv: mozilla common voice)",
-                            'action':'append'
-                        }),
-                        ('--data-file-location',
-                            {'help':"location of data archives",
-                            'default':'./training_data'
-                        }),
-                        ('-r','--refresh-data',
-                            {'help':"Load and process training data even if "
-                                "preprocessed data is found",
-                            'action':'store_true'
-                        }),
-                        ('--capital-letters-ok',
-                            {'help':"Don't remove Capital Letters from "
-                                    "training data",
-                            'action':'store_true'
-                        }),
-                        ('--special-characters-ok',
-                            {'help':"Don't remove special characters from "
-                                    "training data",
-                            'action':'store_true'
-                        }),
-                        ('--make-vocab',
-                            {'help':"make_vocab",
-                        }),
-                        ('--transcription-field',
-                            {'help':"Name of data field containinig "
-                                    "transcriptions",
-                            'default':'sentence'
-                        }),
-                        ('--proportion-to-train-with',
-                            {'help':"Proportion of data to use for training "
-                                "(The remaining will be used for validation)",
-                                'default':0.9
-                        }),
-                        ('-m','--remake_model',
-                            {'help':"Remake Model (even if found)",
-                            'action':'store_true'
-                        }),
-                        ('--lora',
-                            {'help':"Use Low-Rank Adaptation (LoRA)",
-                            'action':'store_true'
-                        }),
-                        ('--add-adapter',{'help':"Add adapter "
-                                                # "Low-Rank Adaptation (LoRA)"
-                        ,'action':'store_true'
-                        }),
-                        ('-q','--quant',
-                            {'help':"Use Quantization",
-                            'action':'store_true'
-                        }),
-                        ('--attention-dropout',{'default':0.0}),
-                        ('--hidden-dropout',{'default':0.0}),
-                        ('--feat-proj-dropout',{'default':0.0}),
-                        ('--mask-time-prob',{'default':0.0}),
-                        ('--layerdrop',{'default':0.0}),
-                        ('--ctc-loss-reduction',
-                            {'help':"ctc_loss_reduction",
-                            'default':'mean'
-                        }),
-                        ('-i', '--infer',
-                            {'help':"Infer on a model (get text from audio)",
-                            'action':'store_true'
-                        }),
-                        ('-a', '--audio',
-                            {'help':"Audio file to infer (convert to text)",
-                            'action':'append'
-                        }),
-                        ('--demo',
-                            {'help':"serve a demonstration web page",
-                            'action':'store_true'
-                        }),
-                        ('--debug',
-                            {'help':"more output for debugging",
-                            'action':'store_true'
-                        }),
-                        ('-v', '--version', {'action':'version',
-                                            'version':f'%(prog)s {version}'
-                                        })
-                        ]
-        if self.has_argv():#'google.colab' in sys.modules: #no sys.argv here
-            print("parsing args!")
-            self.parse_argv()
-        else:
-            self.defaults_only()
-    def defaults_only(self):
-        def sanify_arg(x):
-            return x.strip('-').translate(str.maketrans('-','_'))
-        self.args={sanify_arg(arg):kwargs['default']
-            for *args,kwargs in self.default_list
-            for arg in args
-            if '--' in arg
-            if 'default' in kwargs
-        }
-        self.args.update({sanify_arg(arg):False #default!
-            for *args,kwargs in self.default_list
-            for arg in args
-            if '--' in arg
-            if 'action' in kwargs
-            if kwargs['action'] == 'store_true'
-        })
-    def parse_argv(self):
-        parser = argparse.ArgumentParser(
-                            prog='ASR_Trainer',
-                            description='This module programmatically trains Automatic '
-                            'Speech Recognition (ASR) modules, for scalable mass '
-                            'production with minimal training data.'
-                            '\nUsing various options, one can train, infer and push '
-                            'all in the same run, if desired.',
-                            )
-        for *args,kwargs in self.default_list:
-            parser.add_argument(*args,**kwargs)
-        self.args = vars(parser.parse_args())
-        # This section converts various settings from what makes sense to the
-        # user to what the computer uses, especially where default is true,
-        # rather than false (unspecified)
-        for i in [
-            # This should be a list, even if user doesn't think of it this way:
-                # ('data_file_prefix','data_file_prefixes'),
-                ('special_characters_ok','no_special_characters'),
-                ('capital_letters_ok','no_capital_letters')
-                ]: #conver first to second
-            self.args[i[1]]=self.args.pop(i[0])
-        # print(f"Found user args {self.args}")
 def compute_metrics_bert(pred):
     """This is outside the class because it needs to be accessable
     even when the processor is loaded, rather than built."""
