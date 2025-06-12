@@ -176,7 +176,8 @@ def do_run(model_type,trainer_type,options):
         if options.args.get('push_to_hub'): #token import in train.py
             t.push()
     if options.args.get('demo'):
-        train.Demo(names)
+        if names.fqmodelname_loc:
+            train.Demo(names)
     if options.args.get('infer'):
         import infer
         # from datasets import Dataset, Audio #needed for Infer() only
@@ -193,6 +194,14 @@ def do_run(model_type,trainer_type,options):
                 print(f"Inferring {file}")
                 output=inferer(file,show_standard=True)
                 print(names.modelname+':', output)
+def notify_user_todo():
+    todo=[m for m in ['train','demo','infer'] if my_options.args[m]]
+    if len(todo) > 2:
+        todo=[', '.join(todo[:-1]),todo[-1]] #just the last
+    if len(todo) > 1:
+        todo.insert(-1,'and')
+    todo=' '.join(todo)
+    print(f"going to {todo if todo else 'nothing?!?'}")
 if __name__ == '__main__':
     options=train.Options()
     options.args.update({
