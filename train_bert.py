@@ -206,9 +206,9 @@ if __name__ == '__main__':
     options=train.Options()
     options.args.update({
             'language_iso':'gnd',
-            'cache_dir':'.',
+            'cache_dir':'/media/kentr/Backups/hfcache',
             'dataset_code':'csv',
-            'data_file_prefixes':['lexicon_41','examples_300'],
+            'data_file_prefixes':['lexicon_13','examples_300'],
             'data_file_location':'training_data',
             'train':True,
             'refresh_data':True
