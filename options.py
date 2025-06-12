@@ -24,6 +24,9 @@ class Parser(object):
             self.arg_sets.remove(arg_set)
         except ValueError:
             pass #'base' isn't in this list, ever.
+    def sanitize(self):
+        if not self.args.get('cache_dir_tuned'):
+            self.args['cache_dir_tuned']=self.args.get('cache_dir')
     def __init__(self,*args):#_sets=set(),parents=[]):
         arg_sets_ok={'base','train','infer'}
         if set(args)-arg_sets_ok:
@@ -60,7 +63,7 @@ class Parser(object):
                 {'help':"ISO 639-3 (Ethnologue) code of language",
                 'required':has_argv()
             }),
-            ('--cache_dir_tuned',
+            ('--cache-dir-tuned',
                 {'help':"Directory to store tuned models",
             }),
             ('-p', '--push-to-hub',
@@ -82,7 +85,7 @@ class Parser(object):
                     'choices':['wer','cer'],
                     'default':'wer'
                 }),
-            ('--remake_processor',
+            ('--remake-processor',
                 {'help':"Remake Data pre-processor and tokenizer "
                     "(even if found)",
                     'action':'store_true'
@@ -117,7 +120,7 @@ class Parser(object):
                     'action':'store_true'
                 }),
             ('--make-vocab',
-                {'help':"make_vocab",
+                {'help':"make a vocab file for the CTC tokenizer",
                 }),
             ('--transcription-field',
                 {'help':"Name of data field containinig "
@@ -173,6 +176,7 @@ class Parser(object):
         if hasattr(self,'ap'):
             self.ap.finalize()
             self.args = self.ap.args
+        self.sanitize()
     def defaults_only(self):
         """This is used when we want sane defaults, but don't have sys.argv
         (e.g., colab)"""
@@ -225,7 +229,7 @@ class ArgumentParser(argparse.ArgumentParser):
         # rather than false (unspecified)
         # print(f"Found user args {self.args}")
 if __name__ == '__main__':
-    options=Parser('infer')
+    options=Parser('train','infer')
     print(type(options))
     print(options.args)
     # options=Parser(parents=[options],arg_set='demo')
