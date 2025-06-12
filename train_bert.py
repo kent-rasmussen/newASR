@@ -222,7 +222,7 @@ if __name__ == '__main__':
         my_options.args.update({
                 'cache_dir':'.',
             })
-
+    notify_user_todo()
     model_type={
                 'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
                 'tokenizer_fn':Wav2Vec2CTCTokenizer,
