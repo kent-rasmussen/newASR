@@ -21,7 +21,7 @@ try:
     import readtoken
 except ModuleNotFoundError:
     print("To download some data sets from HuggingFace, provide your "
-        "read token in readtoken.py (not found), or log in with "
+        "read token in readtoken.py (not found), \nor log in with "
         "notebook_login()")
 debug=False
 # self.token=readtoken.token
