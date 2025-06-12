@@ -60,6 +60,9 @@ class Parser(object):
                 {'help':"ISO 639-3 (Ethnologue) code of language",
                 'required':has_argv()
             }),
+            ('--cache_dir_tuned',
+                {'help':"Directory to store tuned models",
+            }),
             ('-p', '--push-to-hub',
                 {'help':"Store model and processor on HuggingFace",
                 'action':'store_true'
