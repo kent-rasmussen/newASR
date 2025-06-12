@@ -202,11 +202,13 @@ def notify_user_todo():
         todo.insert(-1,'and')
     todo=' '.join(todo)
     print(f"going to {todo if todo else 'nothing?!?'}")
+def make_options():
+    import options
+    return options.Parser('train','infer')
 if __name__ == '__main__':
     if not train.in_venv():
         print("this script is mean to run in a virtual environment, but isn't.")
-    import options
-    my_options=options.Parser('train','infer')
+    my_options=make_options()
     my_options.args.update({
             'language_iso':'gnd',
             'cache_dir':'/media/kentr/Backups/hfcache',
