@@ -1,4 +1,4 @@
-#!env/bin/python3
+#!/usr/bin/env python3
 # coding=UTF-8
 # This was originally based on https://huggingface.co/blog/fine-tune-w2v2-bert,
 # though it has been generalized and adapted from other sources, as well.
