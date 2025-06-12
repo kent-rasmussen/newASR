@@ -26,6 +26,8 @@ except ModuleNotFoundError:
 debug=False
 # self.token=readtoken.token
 # import pushtoken
+def in_venv():
+    return sys.prefix != sys.base_prefix
 class Data:
     def load_dbd_from_disk(self):
         #This should be already constrained by language and model processor:
