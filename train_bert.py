@@ -203,8 +203,11 @@ def notify_user_todo():
     todo=' '.join(todo)
     print(f"going to {todo if todo else 'nothing?!?'}")
 if __name__ == '__main__':
-    options=train.Options()
-    options.args.update({
+    if not train.in_venv():
+        print("this script is mean to run in a virtual environment, but isn't.")
+    import options
+    my_options=options.Parser('train','infer')
+    my_options.args.update({
             'language_iso':'gnd',
             'cache_dir':'/media/kentr/Backups/hfcache',
             'dataset_code':'csv',
@@ -216,7 +219,7 @@ if __name__ == '__main__':
     if 'google.colab' in sys.modules:
         print("It looks like we're running in a colab instance, so setting "
             "some variables now.")
-        options.args.update({
+        my_options.args.update({
                 'cache_dir':'.',
             })
 
@@ -242,7 +245,7 @@ if __name__ == '__main__':
                 'num_train_epochs':3,
                 # 'compute_metrics' is hardcoded; add flexibility if needed
                 }
-    do_run(model_type,trainer_type,options)
+    do_run(model_type,trainer_type,my_options)
     exit()
     for options.args['data_file_prefixes'] in [
                                         ['lexicon_640','examples_300'],
