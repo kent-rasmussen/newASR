@@ -15,11 +15,11 @@ class Parser(object):
         self.default_list=getattr(self,arg_set)
     # def parse():
         if has_argv():#'google.colab' in sys.modules: #no sys.argv here
-            print("parsing args!")
+            # print("parsing args!")
             self.parse_argv()
         else:
             self.defaults_only()
-        print(f"done with {arg_set}")
+        # print(f"done with {arg_set}")
         try:
             self.arg_sets.remove(arg_set)
         except ValueError:
