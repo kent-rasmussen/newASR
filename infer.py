@@ -99,7 +99,17 @@ class Infer(object):
             print("sorry, model(s) at "
                     f"{str(repos).strip('(),')} not loaded; inference will fail.")
 
+def infer_checkpoints(modellist):
+    for m in modellist.copy():
+        checkpoints=[i.path for i in os.scandir(m)
+                    if 'checkpoint-' in i.name
+                    if os.path.isdir(i)
+                    ]
+        for c in checkpoints:
+            modellist.insert(modellist.index(m),c)
+    return modellist
 if __name__ == '__main__':
+    import options
     model_cache='/media/kentr/Backups/hfcache/'
     files=[
         '/home/kentr/Assignment/Tools/WeSay/gnd/ASR/'
@@ -121,13 +131,7 @@ if __name__ == '__main__':
         if d.is_dir() #others should exclude faster
     ]
     if do_checkpoints:
-        for m in modellist.copy():
-            checkpoints=[i.path for i in os.scandir(m)
-                        if 'checkpoint-' in i.name
-                        if os.path.isdir(i)
-                        ]
-            for c in checkpoints:
-                modellist.insert(modellist.index(m),c)
+        modellist=infer_checkpoints(modellist)
     # print('\n'.join(modellist))
 
     models={} #because this loads multiple models first, store in dict.
