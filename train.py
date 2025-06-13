@@ -212,18 +212,6 @@ class Data:
         print(f"char_list ({len(char_list)}):", char_list)
         self.vocab_dict = {v:k for k,v in enumerate(sorted(char_list))}
         print(f"self.vocab_dict ({len(self.vocab_dict)}):",self.vocab_dict)
-    def make_vocab_file(self):
-        if not self.load_chars_from_file():
-            self.do_extract_all_chars()
-        #use defaults from https://huggingface.co/transformers/v4.5.1/model_doc/wav2vec2.html#wav2vec2ctctokenizer
-        if True: #I need to think if this is a good idea:
-            self.vocab_dict["|"] = self.vocab_dict[" "]#"make 'sp' more visible"
-            del self.vocab_dict[" "]
-        self.vocab_dict["<unk>"] = len(self.vocab_dict)
-        self.vocab_dict["<pad>"] = len(self.vocab_dict)
-        len(self.vocab_dict)
-        with open(f"vocab_{self.language['iso']}.json", 'w') as vocab_file:
-            json.dump(self.vocab_dict, vocab_file)
     def cleanup(self):
         if hasattr(self,'tmp') and os.path.exists(self.tmp):
             for file in os.listdir(self.tmp):
@@ -304,58 +292,46 @@ class Processor():
                                                 references=label_str)
 
         return {"errorrate": errorrate}
-    def __init__(self,**kwargs):
-        for k in kwargs:
-            if debug:
-                print(k,kwargs[k])
-            setattr(self,k,kwargs[k])
-        kwargs={}
-        if hasattr(self,'cache_dir'):
-            kwargs['cache_dir']=self.cache_dir
-        # if self.fqmodelname_hf:
-        #     fq=self.fqmodelname_hf
-        # else:
-        #     print("No fully qualified modelname on HF?")#fq=self.modelname
+    def from_pretrained(self,*args,**kwargs):
+        return self.processor_parent_fn.from_pretrained(*args,**kwargs)
+    def make_processor(self):
         fq=self.fqbasemodelname #This class is only called when absent online
         self.feature_extractor = self.feature_extractor_fn.from_pretrained(fq)
-        # kwargs['languagename']=self.languagename
         self.make_tokenizer()
-        # return
-        self.processor = self.processor_fn(
+        self.processor = self.processor_parent_fn(
                                 feature_extractor=self.feature_extractor,
                                 tokenizer=self.tokenizer)
         self.processor.save_pretrained(self.fqmodelname_loc)
-class BertProcessor(Processor):
-    def verify_json(self,json_file):
-        defaults=set(['<unk>','<pad>','|'])
-        with open(json_file, 'r') as vocab_file:
-            d=json.load(vocab_file)
-            defaults_present=defaults&set(d)
-            if len(defaults_present) == len(defaults):
-                print(f"all defaults ({defaults}) found in json file.")
-                with open('vocab.json', 'w') as f:
-                    json.dump(d,f)
-            else:
-                print(f"json file missing default value(s) {defaults-set(d)}")
-    def make_tokenizer(self):
-        print("Building tokenizer from (local) json file.")
-        json_file=f"vocab_{self.language['iso']}.json"
-        try:
-            self.verify_json(json_file)
-        except FileNotFoundError as e:
-            print(f"It looks like the json file didn't get made; "
-                "be sure to set make_vocab=True in data load ({e})")
-            exit()
-        self.tokenizer = self.tokenizer_fn.from_pretrained('./',
-                                        tokenizer_class= 'Wav2Vec2CTCTokenizer')
-    def prepare_dataset(self,batch):
-        audio = batch["audio"]
-        batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
-        batch["input_length"] = len(batch["input_features"])
-        batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
-        return batch
+        self.processor_remade=True
     def __init__(self,**kwargs):
-        super().__init__(**kwargs)
+        for k in list(kwargs):
+            if debug:
+                print(k,':',kwargs[k])
+            if k in ['cache_dir','remake_processor']:
+                setattr(self,k,kwargs.get(k))
+            else:
+                setattr(self,k,kwargs.pop(k))
+        try:
+            # assert False
+            assert not kwargs.get('remake_processor')
+            print(f"Looking for {self.fqbasemodelname} processor")
+            for loc in [self.fqbasemodelname,self.fqmodelname_hf]:
+                if loc:
+                    print(f"In {loc}, with {self.processor_fn} ")
+                    self.processor=self.from_pretrained(loc,**kwargs)
+                    print(f"Loaded {self.modelname} processor "
+                                f"({self.fqbasemodelname})")
+                    self.processor_remade=False
+                    break #stop the first time you get this far
+                else:
+                    print("{loc} not found.")
+        except (Exception,AssertionError) as e:
+            if isinstance(e,AssertionError):
+                e="by request"
+            if 'expected str, bytes or os.PathLike object, not NoneType' in e.args:
+                e=f"Probably missing a vocab file: {','.join(e.args)}"
+            print(f"Remaking {self.modelname} processor ({e})")
+            self.make_processor()
 class BaseModel():
     def get_peftOK_layer_names(self):
         layer_names = []
@@ -380,7 +356,6 @@ class BaseModel():
         print('peftOK_layer_names:',list(set(layer_names)))
         print('peftOK_layer_types:',list(set(layer_types)))
         return list(set(layer_names))
-
     def use_lora(self):
         # /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/peft/tuners/tuners_utils.py:550: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['model.decoder.embed_tokens'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
         self.check_for_input_embeddings_method()
@@ -414,14 +389,42 @@ class BaseModel():
         pipe.model = torch.quantization.quantize_dynamic(
             pipe.model, {torch.nn.Linear}, dtype=torch.qint8
         )
+    def quant_config(self):
+        if getattr(self.names,'quant',False):
+            import intel_extension_for_pytorch as ipex
+            quantization_config=BitsAndBytesConfig(
+                # ( load_in_8bit = False
+                # llm_int8_threshold = 6.0
+                # llm_int8_skip_modules = None
+                # llm_int8_enable_fp32_cpu_offload = False )
+            )
+            # quantization_config=BitsAndBytesConfig(
+            #         # load_in_4bit=True,
+            #         load_in_8bit = True,
+            #         bnb_4bit_quant_type="nf4",         # NormalFloat4 quantization
+            #         # bnb_4bit_use_double_quant=True,    # Enable double quantization
+            #         # bnb_4bit_compute_dtype=torch.bfloat16 # Compute dtype for faster training
+            #         )
+            self.quantization_config=quantization_config
     def donothing(self):
         pass
     def check_for_input_embeddings_method(self):
         if not hasattr(self.getmodel_fn,'get_input_embeddings'):
             self.getmodel_fn.get_input_embeddings=self.donothing
     def get_model(self,**kwargs):
-        self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
-                                                        **kwargs)
+        try:
+            assert not getattr(self,'reload_model',False)
+            print(f"Looking for saved {self.basemodelprettyname} model")
+            self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
+                **kwargs)
+            print(f"Loaded {self.basemodelprettyname} model "
+                    f"({self.fqbasemodelname})")
+        except (Exception,AssertionError) as e:
+            if isinstance(e,AssertionError):
+                e="by request"
+            print(f"Reloading {self.basemodelprettyname} from source ({e})")
+            self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
+                **{**kwargs,'force_download':True})
         try:
             if self.model.generation_config:
                 self.model.generation_config.language = self.language['name']
@@ -457,6 +460,7 @@ class BaseModel():
                         'mask_time_prob',
                         'layerdrop',
                         'ctc_loss_reduction',
+                        'pad_token_id',
                         # 'add_adapter',
                         ]
         nonmodelkwargs=['getmodel_fn',
@@ -466,10 +470,12 @@ class BaseModel():
                         'quant',
                         'metric_name',
                         'modelprettyname',
-                        'pad_token_id',
+                        # 'pad_token_id',
                         'basemodelprettyname',
+                        'basemodelname',
                         'fqbasemodelname',
-                        'push_to_hub'
+                        'push_to_hub',
+                        'reload_model'
                         ]
         # assert not set(nonmodelkwargs)&set(kwargstogetmodel)
         overlap=set(kwargstogetmodel)&set(nonmodelkwargs)
@@ -486,7 +492,7 @@ class BaseModel():
             print("Found remaining model kwargs (add them?):",
                     remaining)
             exit()
-        for k in kwargs.copy(): #b/c pop
+        for k in list(kwargs): #b/c pop
             if k in kwargstogetmodel:
                 if debug:
                     print(k,kwargs[k],"(to get_model())")
@@ -653,18 +659,14 @@ class Demo(object):
         return self.inferer(audio,show_standard=True)
     def transcribe_pipe(self,audio):
         return self.pipe(audio)["text"]
-    def __init__(self,names):
+    def do_pipe(self):
         from transformers import pipeline
-        import gradio as gr
-        import infer
-        self.inferer=infer.Infer(names.fqmodelname_loc)
         self.pipe = pipeline(model=names.fqmodelname_loc,
                             model_kwargs={"cache_dir": names.cache_dir},
                             tokenizer=names.fqmodelname_loc,
                             task='automatic-speech-recognition',
                             )
         inputs1=gr.Audio(sources=['microphone', 'upload'], type="filepath"),
-        inputs2=gr.Audio(sources=['microphone', 'upload'], type="filepath"),
         iface_pipe = gr.Interface(
             fn=self.transcribe_pipe,
             inputs=inputs1,
@@ -674,6 +676,20 @@ class Demo(object):
                         "recognition using a fine-tuned "
                         f"{names.modelprettyname} model."),
             )
+        iface_pipe.launch()
+    def do_tabs(self):
+        app = gr.TabbedInterface(interface_list=[iface_pipe, iface_module],
+                         tab_names = ["pipe", "module"])
+        app.launch()
+    def __init__(self,names):
+        import gradio as gr
+        import infer
+        self.inferer=infer.Infer(names.fqmodelname_loc)
+        if not self.inferer.loaded:
+            print(f"Not loading demo; {names.fqmodelname_loc} model "
+                "didn't load (is it trained?)")
+            return
+        inputs2=gr.Audio(sources=['microphone', 'upload'], type="filepath"),
         iface_module = gr.Interface(
             fn=self.transcribe_module,
             inputs=inputs2,
@@ -683,37 +699,7 @@ class Demo(object):
                         "recognition using a fine-tuned "
                         f"{names.modelprettyname} model."),
             )
-        app = gr.TabbedInterface(interface_list=[iface_pipe, iface_module],
-                         tab_names = ["pipe", "module"])
-        app.launch()
-@dataclass
-class DataCollatorCTCWithPadding:
-    from transformers import Wav2Vec2BertProcessor
-    processor: Wav2Vec2BertProcessor
-    padding: Union[bool, str] = True
-    def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # split inputs and labels since they have to be of different lenghts and need
-        # different padding methods
-        input_features = [{"input_features": feature["input_features"]} for feature in features]
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
-
-        batch = self.processor.pad(
-            input_features,
-            padding=self.padding,
-            return_tensors="pt",
-        )
-
-        labels_batch = self.processor.pad(
-            labels=label_features,
-            padding=self.padding,
-            return_tensors="pt",
-        )
-        # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
-
-        batch["labels"] = labels
-
-        return batch
+        iface_module.launch()
 class Nomenclature():
     """This class calculates and stores names for various things, based on
     provided parameters"""
@@ -765,6 +751,7 @@ class Nomenclature():
                 'basemodelprettyname',
                 'getmodel_fn',
                 'cache_dir',
+                'reload_model',
                 'attention_dropout',
                 'hidden_dropout',
                 'feat_proj_dropout',
@@ -891,7 +878,7 @@ class Nomenclature():
         if (getattr(self,'data_file_prefixes',None) and
             self.data_file_prefixes[0].split('_')[-1].isdigit()): #test once for all
             rows=str(sum([int(i.split('_')[-1]) for i in self.data_file_prefixes]))
-            print(f"using {rows} rows")
+            # print(f"using {rows} rows")
         else:
             print("getattr data_file_prefixes:",getattr(self,'data_file_prefixes',None))
             print("int:",int(self.data_file_prefixes[0].split('_')[-1]))
@@ -900,7 +887,7 @@ class Nomenclature():
             rows=''
         self.modelname+=f'_{rows}x{str(self.num_train_epochs)}'
         self.fqmodelname_loc=os.path.join(
-                                        self.cache_dir,
+                                        self.cache_dir_tuned,
                                         self.modelname)
         if kwargs.get('my_hf_login'):
             self.fqmodelname_hf='/'.join([kwargs.get('my_hf_login'),self.modelname])
@@ -969,21 +956,6 @@ class Nomenclature():
                         ]
         if self.train:
             self.dataset_name()
-def compute_metrics_bert(pred):
-    """This is outside the class because it needs to be accessable
-    even when the processor is loaded, rather than built."""
-    pred_logits = pred.predictions
-    pred_ids = numpy.argmax(pred_logits, axis=-1)
-
-    pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
-
-    pred_str = processor.batch_decode(pred_ids)
-    # we do not want to group tokens when computing the metrics
-    label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-
-    error = metric.compute(predictions=pred_str, references=label_str)
-
-    return {names.metric_name: error}
 def count_cpus():
     #Not sure if this is working; override:
     # self.cpus=10
@@ -992,10 +964,8 @@ def count_cpus():
     return multiprocessing.cpu_count()
 
 if __name__ == '__main__':
-    #for testing with Bert; this is normally in train wrapper:
-    from transformers import (Wav2Vec2CTCTokenizer,SeamlessM4TFeatureExtractor,
-                                Wav2Vec2BertProcessor,Wav2Vec2BertForCTC,
-                                TrainingArguments,Trainer)
+    #for testing with Bert; it won't work without modules in train_bert
+    # this is normally in train wrapper:
     model_type={
                 # 'getmodel_fn':AutoModelForCTC, #for basemodels
                 'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
@@ -1038,64 +1008,3 @@ if __name__ == '__main__':
     if options.args.get('debug'):
         for attr in dir(names):
             print(attr,getattr(names,attr))
-    data=Data(**names.datakwargs())
-    try:
-        print(f"Looking for {names.modelname} processor online/cached")
-        assert options.get('remake_processor') is False
-        processor=names.processor_fn.from_pretrained(
-                                                        names.fqmodelname_hf,
-                                                        cache_dir=names.cache_dir
-                                                        )
-                            # feature_extractor=self.feature_extractor,
-                            # tokenizer=self.tokenizer)
-        if not self.data.dataset_prepared:
-            self.data.show_dimensions_preprocessed()
-            self.processor.do_prepare_dataset(self.data)
-        print(f"Loaded {names.modelname} processor ({names.fqmodelname})")
-    except (Exception,AssertionError) as e:
-        if isinstance(e,AssertionError):
-            e="by request"
-        print(f"Remaking {names.modelname} processor ({e})")
-        processor=BertProcessor(
-                        **names.processorkwargs()
-                    )
-        data.show_dimensions_preprocessed()
-        processor.do_prepare_dataset(data)
-        data.cleanup()
-        if options.args.get('push_to_hub'):
-            processor.push_to_hub(fqmodelname)
-        #make this match try results: a transformers object
-        processor=processor.processor
-    try:
-        print(f"Looking for saved {names.modelname} model")
-        assert options.args.get('remake_model') is False
-        model=names.getmodel_fn.from_pretrained(
-                                                names.modelname,
-                                                cache_dir=names.cache_dir
-                                                )
-        print(f"Loaded {names.modelname} model ({names.modelname})")
-    except (Exception,AssertionError) as e:
-        if isinstance(e,AssertionError):
-            e="by request"
-        print(f"Remaking {names.modelname} model ({e})")
-        model=BaseModel(
-                        vocab_size=len(processor.tokenizer),
-                        pad_token_id=processor.tokenizer.pad_token_id,
-                        **names.modelkwargs()
-                        )#fqmodelname=model_fns['fqmodelname'],
-        #make this match try results: a transformers object
-        model=model.model
-    data_collator = names.data_collator_fn(processor=processor, padding=True)
-    import evaluate
-    metric = evaluate.load(names.metric_name)
-    trainer=Training(
-                    model= model,
-                    processor=processor, #downloads or builds above
-                    data=data.dbd,
-                    data_collator=data_collator,
-                    # compute_metrics=names.compute_metrics_bert,
-                    **names.trainingkwargs()
-                    )
-    trainer.train()
-    model.save_pretrained(names.fqmodelname_loc)
-    # self.trainer.push()
