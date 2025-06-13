@@ -98,16 +98,24 @@ class Infer(object):
                                                         self.get_model_fn()):
             print("sorry, model(s) at "
                     f"{str(repos).strip('(),')} not loaded; inference will fail.")
-
-def infer_checkpoints(modellist):
-    for m in modellist.copy():
-        checkpoints=[i.path for i in os.scandir(m)
-                    if 'checkpoint-' in i.name
-                    if os.path.isdir(i)
-                    ]
-        for c in checkpoints:
-            modellist.insert(modellist.index(m),c)
-    return modellist
+class InferDict(dict):
+    def infer_checkpoints(self):
+        for m in self.models.copy():
+            checkpoints=[i.path for i in os.scandir(m)
+                        if 'checkpoint-' in i.name
+                        if os.path.isdir(i)
+                        ]
+            print("found checkpoints",checkpoints)
+            for c in checkpoints:
+                self.models.insert(self.models.index(m),c)
+    def __init__(self,models,checkpoints=False):
+        self.models=models
+        if checkpoints:
+            self.infer_checkpoints()
+        print("going to infer",self.models)
+        for i in self.models:
+            self[i]=Infer(i)
+        print("going to infer",self.models)
 if __name__ == '__main__':
     import options
     model_cache='/media/kentr/Backups/hfcache/'
@@ -140,13 +148,6 @@ if __name__ == '__main__':
         files=sys.argv[2:]
     elif sys.argv[1:]:
         files=sys.argv[1:]
-    for model in modellist:
-        if 'checkpoint' in model: #keep model name and checkpoint
-            m=os.path.join(os.path.basename(os.path.dirname(model)
-                ),os.path.basename(model))
-        else:
-            m=os.path.basename(model)
-        models[m]=Infer(model)
         # if hasattr(models[m],'model'):
         #     print(f"{model} loaded")
     for file in files:
