@@ -150,7 +150,7 @@ class TrainWrapper(object):
         self.names=train.Nomenclature(
             **model_type,
             **trainer_type,
-            **my_options #pull in default and user settings
+            **my_options_args #pull in default and user settings
             )
         if not isinstance(self.names,train.Nomenclature):
             print(f"Found ({type(names)}) names object; errors may follow.")
