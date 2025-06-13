@@ -146,8 +146,12 @@ class TrainWrapper(object):
             for m in models:
                 print(os.path.basename(m)+':', models[m](file,show_standard))
                 show_standard=False #just once each time
-    def __init__(self,names): #all options come through names object
-        self.names=names
+    def __init__(self,model_type,trainer_type,my_options_args):
+        self.names=train.Nomenclature(
+            **model_type,
+            **trainer_type,
+            **my_options #pull in default and user settings
+            )
         if not isinstance(self.names,train.Nomenclature):
             print(f"Found ({type(names)}) names object; errors may follow.")
             self.names=train.Nomenclature()
@@ -278,20 +282,10 @@ if __name__ == '__main__':
                 'num_train_epochs':3,
                 # 'compute_metrics' is hardcoded; add flexibility if needed
                 }
-    names=train.Nomenclature(
-        **model_type,
-        **trainer_type,
-        **my_options.args #pull in default and user settings
-        )
-    TrainWrapper(names)
+    TrainWrapper(model_type,trainer_type,my_options.args)
     exit()
-    for options.args['data_file_prefixes'] in [
+    for my_options.args['data_file_prefixes'] in [
                                         ['lexicon_640','examples_300'],
                                     ]:
-        for options.args['metric_name'] in ["wer"]:
-            names=train.Nomenclature(
-                **model_type,
-                **trainer_type,
-                **options.args #pull in default and user settings
-                )
-            TrainWrapper(names)
+        for my_options.args['metric_name'] in ["wer"]:
+            TrainWrapper(model_type,trainer_type,my_options.args)
