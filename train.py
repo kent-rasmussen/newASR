@@ -939,7 +939,7 @@ class Nomenclature():
             print("You really need to specify your full model address/name. "
                     "For inference, this is used to find the name of the "
                     "model to use for inference.")
-            quit()
+            raise
         self.check_cache()
         self.model_name(**kwargs)
         if kwargs.get('data_file_prefixes'): #find actual files
