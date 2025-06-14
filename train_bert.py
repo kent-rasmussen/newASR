@@ -146,6 +146,14 @@ class TrainWrapper(object):
             for m in models:
                 print(os.path.basename(m)+':', models[m](file,show_standard))
                 show_standard=False #just once each time
+    def notify_user_todo(self):
+        t=[m for m in ['train','demo','infer'] if getattr(self.names,m,False)]
+        if len(t) > 2:
+            todo=[', '.join(t[:-1]),t[-1]] #just the last
+        if len(t) > 1:
+            t.insert(-1,'and')
+        t=' '.join(t)
+        print(f"going to {t if t else 'nothing?!?'}")
     def __init__(self,model_type,trainer_type,my_options_args):
         self.names=train.Nomenclature(
             **model_type,
@@ -156,6 +164,7 @@ class TrainWrapper(object):
             print(f"Found ({type(names)}) names object; errors may follow.")
             self.names=train.Nomenclature()
         self.data=Data(**self.names.datakwargs())
+        self.notify_user_todo()
         if getattr(self.names,'debug',False):
             for attr in dir(self.names):
                 if '__' not in attr:
@@ -219,14 +228,6 @@ class DataCollatorCTCWithPadding:
         batch["labels"] = labels
 
         return batch
-def notify_user_todo():
-    todo=[m for m in ['train','demo','infer'] if my_options.args[m]]
-    if len(todo) > 2:
-        todo=[', '.join(todo[:-1]),todo[-1]] #just the last
-    if len(todo) > 1:
-        todo.insert(-1,'and')
-    todo=' '.join(todo)
-    print(f"going to {todo if todo else 'nothing?!?'}")
 def make_options():
     import options
     return options.Parser('train','infer')
