@@ -83,17 +83,14 @@ class Data:
                                     train_size=self.proportion_to_train_with)
         rows_to_show=1
         # rows_to_show=self.dbd['train'].num_rows #for more detailed debug
-        for split in ['train', 'test']:
-            # print(f"{split} data loaded: (type: {type(self.dbd[split])})")
-            for n in range(rows_to_show):
-                print(f"{split} row {n} of {self.dbd[split].num_rows}: "
-                        f"{self.dbd[split][n]}")
+        if debug:
+            for split in ['train', 'test']:
+                for n in range(rows_to_show):
+                    print(f"{split} row {n} of {self.dbd[split].num_rows}: "
+                            f"{self.dbd[split][n]}")
         self.dataset_prepared=False
         print(f"Loaded database {self.datasetprettyname} with "
-                f"{self.language['name']} data "
-                f"({self.fqdatasetname}) from CSV file, "
-                f"Rows: {self.dbd.num_rows}")
-        # print(f"first row: {self.dbd['train'][0]}")
+                f"{self.language['name']} data with {self.dbd.num_rows} rows "                f"from CSV file ({self.fqdatasetname})")
     def load_dbd(self):
         self.dbd = DatasetDict()
         splits=list(map(lambda x:x+f'[:{self.max_data_rows}]',self.data_splits))
