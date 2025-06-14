@@ -242,12 +242,12 @@ if __name__ == '__main__':
             'language_iso':'gnd',
             'cache_dir':'/media/kentr/Backups/hfcache',
             'dataset_code':'csv',
-            'data_file_prefixes':['lexicon_13','examples_300'],
+            'data_file_prefixes':['lexicon_640','examples_4589'],
             'data_file_location':'training_data',
             'infer_checkpoints':True,
-            # 'train':True,
+            'train':True,
             'infer':True,
-            'refresh_data':True,
+            # 'refresh_data':True,
             # 'remake_processor':True, #
             # 'reload_model':True
         })
@@ -257,8 +257,7 @@ if __name__ == '__main__':
         my_options.args.update({
                 'cache_dir':'.',
             })
-    my_options.sanitize()
-    notify_user_todo()
+    my_options.sanitize() # wait until everyting is set to do this
     model_type={
                 'fqbasemodelname':"facebook/w2v-bert-2.0",
                 'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
