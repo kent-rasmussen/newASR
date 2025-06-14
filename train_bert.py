@@ -94,7 +94,7 @@ class TrainWrapper(object):
             except KeyError: #the data as we have it is already processed
                 print("Reloading data which looks already processed by an "
                     "earlier processor")
-                self.data=Data(**self.names.datakwargs())
+                self.get_data()
             processor.do_prepare_dataset(self.data)
             self.data.cleanup() #data temp files
         if getattr(self.names,'push_to_hub',False):
@@ -163,7 +163,6 @@ class TrainWrapper(object):
         if not isinstance(self.names,train.Nomenclature):
             print(f"Found ({type(names)}) names object; errors may follow.")
             self.names=train.Nomenclature()
-        self.data=Data(**self.names.datakwargs())
         self.notify_user_todo()
         if getattr(self.names,'debug',False):
             for attr in dir(self.names):
