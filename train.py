@@ -179,7 +179,7 @@ class Data:
 
         return batch
     def do_remove_special_characters(self):
-        self.chars_to_remove_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\�\'\»\«]'
+        self.chars_to_remove_regex = '[\]\[\,\?\.\!\-\;\:\"\“\%\‘\”\�\'\»\«]'
         self.dbd=self.dbd.map(self.remove_special_characters)
     def remove_latin_characters(self,batch):
         batch[self.transcription_field] = re.sub(r'[a-z]+', '', batch[self.transcription_field])
