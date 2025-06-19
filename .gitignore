@@ -4,3 +4,9 @@ __pycache__
 env/
 results
 training_data
+evaluate/
+gnd*processed/
+models--*/
+modules/
+xet/
+w2v-bert-2.0-*/
