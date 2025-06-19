@@ -789,6 +789,8 @@ class Nomenclature():
                         "ig":{'mcv_code':'ig', 'iso':'ibo', 'name':"Igbo"},
                         "rw":{'mcv_code':'rw', 'iso':'kin', 'name':"Kinyarwanda"},
                         "lg":{'mcv_code':'lg', 'iso':'lug', 'name':"Luganda"},
+                        "chr":{#'mcv_code':'lg', 
+                            'iso':'chr', 'name':"Cherokee"},
                         }
     def setlang(self,**kwargs):
         self.init_languages()
