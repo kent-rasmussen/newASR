@@ -132,10 +132,10 @@ class TrainWrapper(object):
         self.trainer.push()
     def infer(self):
         import infer
-        fqmodelnames_loc=[names.fqmodelname_loc]
+        fqmodelnames_loc=[self.names.fqmodelname_loc]
         models=infer.InferDict(fqmodelnames_loc,checkpoints='infer_checkpoints')
         if not my_options.args.get('audio'):
-            if names.language['iso'] == 'gnd': #set a few defaults for test languages
+            if self.names.language['iso'] == 'gnd': #set a few defaults for test languages
                 my_options.args['audio']=[
                     '/home/kentr/Assignment/Tools/WeSay/gnd/ASR/'
                     'Listen_to_Bible_Audio_-_Mata_2_-_Bible__Zulgo___gnd___'
