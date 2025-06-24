@@ -134,14 +134,14 @@ class TrainWrapper(object):
         import infer
         fqmodelnames_loc=[self.names.fqmodelname_loc]
         models=infer.InferDict(fqmodelnames_loc,checkpoints='infer_checkpoints')
-        if not my_options.args.get('audio'):
+        if not hasattr(self.names,'audio'):
             if self.names.language['iso'] == 'gnd': #set a few defaults for test languages
-                my_options.args['audio']=[
+                self.names.audio=[
                     '/home/kentr/Assignment/Tools/WeSay/gnd/ASR/'
                     'Listen_to_Bible_Audio_-_Mata_2_-_Bible__Zulgo___gnd___'
                     'Audio_Bibles-MAT_2_min1.wav'
                     ]
-        for file in my_options.args.get('audio'):
+        for file in self.names.audio:
             show_standard=True #just once per audio
             for m in models:
                 print(os.path.basename(m)+':', models[m](file,show_standard))
