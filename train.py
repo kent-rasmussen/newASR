@@ -532,6 +532,7 @@ class Training():
                             # per_device_train_batch_size=pdtbs,
                             gradient_accumulation_steps=gas,
                             warmup_steps=500,
+                            group_by_length=True,
                             # Not for LoRA:
                             # gradient_checkpointing=True,
                             fp16=True,
