@@ -65,12 +65,6 @@ class Processor(Wav2Vec2BertProcessor,train.Processor):
             exit()
         self.tokenizer = self.tokenizer_fn.from_pretrained('./',
                                         tokenizer_class= 'Wav2Vec2CTCTokenizer')
-    def prepare_dataset(self,batch):
-        audio = batch["audio"]
-        batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
-        batch["input_length"] = len(batch["input_features"])
-        batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
-        return batch
     def from_pretrained(self,*args,**kwargs):
         # print(args,kwargs)
         return self.processor_parent_fn.from_pretrained(*args,**kwargs)
@@ -78,30 +72,7 @@ class Processor(Wav2Vec2BertProcessor,train.Processor):
         kwargs['processor_parent_fn']=Wav2Vec2BertProcessor
         train.Processor.__init__(self,**kwargs)
         # Wav2Vec2BertProcessor.__init__()
-class TrainWrapper(object):
-    def get_data(self):
-        self.data=Data(**self.names.datakwargs())
-    def get_processor(self):
-        processor=self.names.processor_fn(**self.names.processorkwargs())
-        if processor.processor_remade:
-            #This is important because we want data preprocessed by the correct
-            # processor. So we do that now if it wasn't already done, or if
-            # it was done by an earlier processor.
-            self.data.dataset_prepared=False
-        if not self.data.dataset_prepared:
-            try:
-                self.data.show_dimensions_preprocessed()
-            except KeyError: #the data as we have it is already processed
-                print("Reloading data which looks already processed by an "
-                    "earlier processor")
-                self.get_data()
-            processor.do_prepare_dataset(self.data)
-            self.data.cleanup() #data temp files
-        if getattr(self.names,'push_to_hub',False):
-            print(f"Going to push to {self.names.fqmodelname} repo")
-            processor.push_to_hub(self.names.fqmodelname)
-        #Processor object goes away at this point
-        self.processor=processor.processor
+class TrainWrapper(train.TrainWrapper):
     def get_base_model(self):
         model=train.BaseModel(
                         vocab_size=len(self.processor.tokenizer),
@@ -125,81 +96,17 @@ class TrainWrapper(object):
         error = self.metric.compute(predictions=pred_str, references=label_str)
 
         return {self.names.metric_name: error}
-    def train(self):
-        self.trainer.train()
-        self.model.save_pretrained(self.names.fqmodelname_loc)
-    def push(self):
-        self.trainer.push()
-    def infer(self):
-        import infer
-        fqmodelnames_loc=[self.names.fqmodelname_loc]
-        models=infer.InferDict(fqmodelnames_loc,checkpoints='infer_checkpoints')
-        if not hasattr(self.names,'audio'):
-            if self.names.language['iso'] == 'gnd': #set a few defaults for test languages
-                self.names.audio=[
-                    '/home/kentr/Assignment/Tools/WeSay/gnd/ASR/'
-                    'Listen_to_Bible_Audio_-_Mata_2_-_Bible__Zulgo___gnd___'
-                    'Audio_Bibles-MAT_2_min1.wav'
-                    ]
-        for file in self.names.audio:
-            show_standard=True #just once per audio
-            for m in models:
-                print(os.path.basename(m)+':', models[m](file,show_standard))
-                show_standard=False #just once each time
-    def notify_user_todo(self):
-        t=[m for m in ['train','demo','infer'] if getattr(self.names,m,False)]
-        if len(t) > 2:
-            todo=[', '.join(t[:-1]),t[-1]] #just the last
-        if len(t) > 1:
-            t.insert(-1,'and')
-        t=' '.join(t)
-        print(f"going to {t if t else 'nothing?!?'}")
     def __init__(self,model_type,trainer_type,my_options_args):
-        self.names=train.Nomenclature(
-            **model_type,
-            **trainer_type,
-            **my_options_args #pull in default and user settings
-            )
-        if not isinstance(self.names,train.Nomenclature):
-            print(f"Found ({type(names)}) names object; errors may follow.")
-            self.names=train.Nomenclature()
-        self.notify_user_todo()
-        if getattr(self.names,'debug',False):
-            for attr in dir(self.names):
-                if '__' not in attr:
-                    print(attr,getattr(self.names,attr))
-        if (getattr(self.names,'train',False) or
-            getattr(self.names,'push_to_hub',False)):
-            self.get_data()
-            self.get_processor()
-            self.get_base_model()
-            data_collator = self.names.data_collator_fn(
-                                                    processor=self.processor,
-                                                    padding=True)
-            #in compute_metrics only:
-            self.metric = evaluate.load(self.names.metric_name)
-            self.trainer=train.Training(
-                        model=self.model,
-                        processor=self.processor, #downloads or builds above
-                        data=self.data.dbd,
-                        data_collator=data_collator,
-                        compute_metrics=self.compute_metrics,
-                        **self.names.trainingkwargs()
-                        )
-            if getattr(self.names,'train',False):
-                self.trainer.train()
-            if getattr(self.names,'push_to_hub',False): #token import in train.py
-                self.trainer.push()
-        if getattr(self.names,'demo',False):
-            if not hasattr(self,'processor'):
-                self.get_processor()
-            if self.names.fqmodelname_loc:
-                train.Demo(self.names)
-        if getattr(self.names,'infer',False):
-            self.infer()
-        # self.trainer=train.Training(**training_kwargs)
-        # self.trainer.train()
-        # self.trainer.push()
+        self.get_names(model_type,trainer_type,my_options_args)
+        self.init_debug()
+        self.processor_fn_kwargs=self.names.processorkwargs()
+        self.get_data_processor_model()
+        self.collator_fn_kwargs={padding:True}
+        self.get_trainer()
+        super().__init__()
+        #in compute_metrics only:
+        self.metric = evaluate.load(self.names.metric_name)
+        self.do_stuff()
 @dataclass
 class DataCollatorCTCWithPadding:
     processor: Wav2Vec2BertProcessor

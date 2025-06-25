@@ -640,6 +640,119 @@ class Training():
                             # tokenizer=self.processor.feature_extractor #not tokenizer
                             processing_class=self.processor.feature_extractor, #not tokenizer
                             )
+class TrainWrapper(object):
+    def get_data(self):
+        self.data=Data(**self.names.datakwargs())
+    def get_processor(self):
+        processor=self.names.processor_fn(**self.processor_fn_kwargs)
+        if processor.processor_remade:
+            #This is important because we want data preprocessed by the correct
+            # processor. So we do that now if it wasn't already done, or if
+            # it was done by an earlier processor.
+            self.data.dataset_prepared=False
+        if not self.data.dataset_prepared:
+            try:
+                self.data.show_dimensions_preprocessed()
+            except KeyError: #the data as we have it is already processed
+                print("Reloading data which looks already processed by an "
+                    "earlier processor")
+                self.get_data()
+            processor.do_prepare_dataset(self.data)
+            self.data.cleanup() #data temp files
+        if getattr(self.names,'push_to_hub',False):
+            print(f"Going to push to {self.names.fqmodelname} repo")
+            processor.push_to_hub(self.names.fqmodelname)
+        #Processor object goes away at this point
+        self.processor=processor.processor
+    def get_base_model(self):
+        model=BaseModel(
+                        # vocab_size=len(self.processor.tokenizer),
+                        # pad_token_id=self.processor.tokenizer.pad_token_id,
+                        **self.names.modelkwargs()
+                        )
+        #BaseModel object goes away at this point
+        self.model=model.model
+    def train(self):
+        self.trainer.train()
+        self.model.save_pretrained(self.names.fqmodelname_loc)
+    def push(self):
+        self.trainer.push()
+    def infer(self):
+        import infer
+        fqmodelnames_loc=[self.names.fqmodelname_loc]
+        models=infer.InferDict(fqmodelnames_loc,checkpoints='infer_checkpoints')
+        if not hasattr(self.names,'audio'):
+            if self.names.language['iso'] == 'gnd': #set a few defaults for test languages
+                self.names.audio=[
+                    '/home/kentr/Assignment/Tools/WeSay/gnd/ASR/'
+                    'Listen_to_Bible_Audio_-_Mata_2_-_Bible__Zulgo___gnd___'
+                    'Audio_Bibles-MAT_2_min1.wav'
+                    ]
+        for file in self.names.audio:
+            show_standard=True #just once per audio
+            for m in models:
+                print(os.path.basename(m)+':', models[m](file,show_standard))
+                show_standard=False #just once each time
+    def notify_user_todo(self):
+        t=[m for m in ['train','demo','infer'] if getattr(self.names,m,False)]
+        if len(t) > 2:
+            todo=[', '.join(t[:-1]),t[-1]] #just the last
+        if len(t) > 1:
+            t.insert(-1,'and')
+        t=' '.join(t)
+        print(f"going to {t if t else 'nothing?!?'}")
+    def get_names(self,model_type,trainer_type,my_options_args):
+        self.names=Nomenclature(
+            **model_type,
+            **trainer_type,
+            **my_options_args #pull in default and user settings
+            )
+        if not isinstance(self.names,Nomenclature):
+            print(f"Found ({type(names)}) names object; errors may follow.")
+            self.names=Nomenclature()
+    def init_debug(self):
+        self.notify_user_todo()
+        if getattr(self.names,'debug',False):
+            for attr in dir(self.names):
+                if '__' not in attr:
+                    print(attr,getattr(self.names,attr))
+    def get_data_processor_model(self):
+        if (getattr(self.names,'train',False) or
+            getattr(self.names,'push_to_hub',False)):
+            self.get_data()
+            self.get_processor()
+            self.get_base_model()
+    def get_trainer(self):
+        if (getattr(self.names,'train',False) or
+            getattr(self.names,'push_to_hub',False)):
+            data_collator = self.names.data_collator_fn(
+                                                    processor=self.processor,
+                                                    **self.collator_fn_kwargs)
+            self.trainer=Training(
+                        model=self.model,
+                        processor=self.processor, #downloads or builds above
+                        data=self.data.dbd,
+                        data_collator=data_collator,
+                        compute_metrics=self.compute_metrics,
+                        **self.names.trainingkwargs()
+                        )
+    def do_stuff(self):
+        if getattr(self.names,'train',False):
+            self.trainer.train()
+        if getattr(self.names,'push_to_hub',False): #token import in train.py
+            self.trainer.push()
+        if getattr(self.names,'demo',False):
+            if not hasattr(self,'processor'):
+                self.get_processor()
+            if self.names.fqmodelname_loc:
+                Demo(self.names)
+        if getattr(self.names,'infer',False):
+            self.infer()
+    def __init__(self):
+        pass
+        # self.trainer=train.Training(**training_kwargs)
+        # self.trainer.train()
+        # self.trainer.push()
 class Demo(object):
     def transcribe_module(self,audio):
         return self.inferer(audio,show_standard=True)
@@ -778,8 +891,8 @@ class Nomenclature():
                         "ig":{'mcv_code':'ig', 'iso':'ibo', 'name':"Igbo"},
                         "rw":{'mcv_code':'rw', 'iso':'kin', 'name':"Kinyarwanda"},
                         "lg":{'mcv_code':'lg', 'iso':'lug', 'name':"Luganda"},
-                        "chr":{#'mcv_code':'lg', 
-                            'iso':'chr', 'name':"Cherokee"},
+                        "chr":{'iso':'chr', 'name':"Cherokee"},
+                        "hau":{'iso':'hau','name':"Hausa"}
                         }
     def setlang(self,**kwargs):
         self.init_languages()
