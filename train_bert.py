@@ -239,9 +239,9 @@ if __name__ == '__main__':
     """‘reload_model’ causes a large download!"""
     my_options.args.update({
             'language_iso':'gnd',
-            'cache_dir':'/media/kentr/Backups/hfcache',
+            'cache_dir':'/media/kentr/hfcache',
             'dataset_code':'csv',
-            'data_file_prefixes':['lexicon_640','examples_4589'],
+            'data_file_prefixes':['lexicon_640'],#,'examples_4589'
             'data_file_location':'training_data',
             'infer_checkpoints':True,
             'train':True,
@@ -269,22 +269,28 @@ if __name__ == '__main__':
                 'data_collator_fn':DataCollatorCTCWithPadding,
                 'training_args_fn':TrainingArguments,
                 'trainer_fn':Trainer,
-                'learning_rate':5e-5,
+                'learning_rate':1e-5,
                 'per_device_train_batch_size':16,
-                'save_steps':5,
+                'save_steps':20,
                 # load_best_model_at_end requires the save and eval strategy to match
                 'eval_strategy': 'epoch',
                 'save_strategy': 'epoch',
                 # 'eval_steps':5,
-                'logging_steps':5,
-                'save_total_limit':2,
-                'num_train_epochs':3,
+                'logging_steps':20,
+                'save_total_limit':6,
+                'num_train_epochs':1,
+                'attention-dropout':0.0,
+                'hidden-dropout':0.0,
+                'feat-proj-dropout':0.0,
+                'mask-time-prob':0.0,
+                'layerdrop':0.0,
+                'ctc-loss-reduction':'mean'
                 # 'compute_metrics' is hardcoded; add flexibility if needed
                 }
-    TrainWrapper(model_type,trainer_type,my_options.args)
+    for my_options.args['metric_name'] in ['cer','wer']:
+        TrainWrapper(model_type,trainer_type,my_options.args)
     exit()
     for my_options.args['data_file_prefixes'] in [
                                         ['lexicon_640','examples_300'],
                                     ]:
-        for my_options.args['metric_name'] in ["wer"]:
-            TrainWrapper(model_type,trainer_type,my_options.args)
+        TrainWrapper(model_type,trainer_type,my_options.args)
