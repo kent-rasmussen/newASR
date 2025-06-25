@@ -63,6 +63,10 @@ class Parser(object):
                 {'help':"ISO 639-3 (Ethnologue) code of language",
                 'required':has_argv()
             }),
+            ('-s', '--sister-language-iso',
+                {'help':"ISO 639-3 (Ethnologue) code of a related language"
+                    "already covered by the model to be fine-tuned",
+            }),
             ('--cache-dir-tuned',
                 {'help':"Directory to store tuned models",
             }),
@@ -148,15 +152,12 @@ class Parser(object):
                 {'help':"Use Quantization",
                     'action':'store_true'
                 }),
-            ('--attention-dropout',{'default':0.0}),
-            ('--hidden-dropout',{'default':0.0}),
-            ('--feat-proj-dropout',{'default':0.0}),
-            ('--mask-time-prob',{'default':0.0}),
-            ('--layerdrop',{'default':0.0}),
-            ('--ctc-loss-reduction',
-                {'help':"ctc_loss_reduction",
-                    'default':'mean'
-                    })
+            ('--attention-dropout',{}),
+            ('--hidden-dropout',{}),
+            ('--feat-proj-dropout',{}),
+            ('--mask-time-prob',{}),
+            ('--layerdrop',{}),
+            ('--ctc-loss-reduction',{})
         ]
         self.infer = [
             ('-i', '--infer',
