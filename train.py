@@ -250,14 +250,10 @@ class Processor():
                                             # cache_dir=self.cache_dir
                                             )
     def prepare_dataset(self,batch):
-        """Think about relationship with Data.downsample_audio"""
-        # load and resample audio data from 48 to 16kHz
         audio = batch["audio"]
-        # compute log-Mel input features from input audio array
-        batch["input_features"] = self.feature_extractor(audio["array"],
-                        sampling_rate=audio["sampling_rate"]).input_features[0]
-        # encode target text to label ids
-        batch["labels"] = self.tokenizer(batch[self.transcription_field]).input_ids
+        batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
+        batch["input_length"] = len(batch["input_features"])
+        batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
         return batch
     def do_prepare_dataset(self,dataset):
         if dataset.dataset_prepared:
@@ -422,14 +418,6 @@ class BaseModel():
             print(f"Reloading {self.basemodelprettyname} from source ({e})")
             self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
                 **{**kwargs,'force_download':True})
-        try:
-            if self.model.generation_config:
-                self.model.generation_config.language = self.language['name']
-                self.model.generation_config.task = "transcribe"
-                self.model.generation_config.forced_decoder_ids = None
-        except Exception as e:
-            print("sounds like not all the config went to this kind of model "
-                f"({e})")
         self.did_lora=False
         if kwargs.get('quantization_config'):
             self.did_quant=True
