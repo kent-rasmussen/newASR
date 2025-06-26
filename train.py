@@ -906,7 +906,8 @@ class Nomenclature():
     def noparens_dirs(self,x):
         return '_'.join(x.translate(self.parens_dirs_dict).split(' '))
     def dataset_name(self,**kwargs):
-        if getattr(self,'data_file_prefixes',False) and not self.dataset_code:
+        if (hasattr(self,'data_file_prefixes') and
+                getattr(self,'data_file_prefixes') and not self.dataset_code):
             self.dataset_code='csv'
         self.parens_dirs_dict=str.maketrans('','',')(')
         d={
