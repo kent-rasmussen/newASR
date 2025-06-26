@@ -527,6 +527,7 @@ class Training():
                             metric_for_best_model=self.metric_name,
                             greater_is_better=False,
                             remove_unused_columns=False,
+                            hub_private_repo=True,
                             **kwargs)
     def train(self):
         """
