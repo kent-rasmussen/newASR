@@ -99,8 +99,11 @@ class Data:
         kwargs={'trust_remote_code':True,
                 'cache_dir':self.dataset_dir
                 }
-        if import readtoken:
+        try:
+            import readtoken
             kwargs.update({'token':readtoken.token})
+        except:
+            pass
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
                                     self.language['mcv_code'],
                                     split='+'.join(splits),
