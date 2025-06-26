@@ -97,7 +97,7 @@ class Data:
         print(f"Using data splits {splits}")
         print(f"Using cache dir {self.dataset_dir} ({self.fqdatasetname} not found or refreshing it)")
         kwargs={'trust_remote_code':True,
-                'cache_dir'::self.dataset_dir
+                'cache_dir':self.dataset_dir
                 }
         if import readtoken:
             kwargs.update({'token':readtoken.token})
