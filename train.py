@@ -93,7 +93,7 @@ class Data:
                 f"{self.language['name']} data with {self.dbd.num_rows} rows "                f"from CSV file ({self.fqdatasetname})")
     def load_dbd(self):
         self.dbd = DatasetDict()
-        splits=list(map(lambda x:x+f'[:{self.max_data_rows}]',self.data_splits))
+        splits=list(map(lambda x:x+f'[:{getattr(self,"max_data_rows","")}]',self.data_splits))
         print(f"Using data splits {splits}")
         print(f"Using cache dir {self.dataset_dir} ({self.fqdatasetname} not found or refreshing it)")
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
