@@ -96,19 +96,19 @@ class Data:
         splits=list(map(lambda x:x+f'[:{getattr(self,"max_data_rows","")}]',self.data_splits))
         print(f"Using data splits {splits}")
         print(f"Using cache dir {self.dataset_dir} ({self.fqdatasetname} not found or refreshing it)")
+        kwargs={trust_remote_code=True,
+                cache_dir=self.dataset_dir
+                }
+        if import readtoken:
+            kwargs.update({token=readtoken.token})
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
                                     self.language['mcv_code'],
                                     split='+'.join(splits),
-                                    token=readtoken.token,
-                                    trust_remote_code=True,
-                                    cache_dir=self.dataset_dir,
+                                    **kwargs
                                     ).select_columns(self.columns)
         self.dbd["test"] = load_dataset(self.fqdatasetname,
                                     self.language['mcv_code'],
                                     split="test",
-                                    token=readtoken.token,
-                                    trust_remote_code=True,
-                                    cache_dir=self.dataset_dir,
                                     ).select_columns(self.columns)
         self.dataset_prepared=False
         print(f"Found database {self.datasetprettyname} with "
@@ -543,8 +543,7 @@ class Training():
         self.trainer.push_to_hub(**self.push_kwargs())
         self.tokenizer.push_to_hub(self.modelname, **self.push_kwargs())
     def push_kwargs(self):
-        import pushtoken
-        return {
+        kwargs= {
                     "dataset_tags": self.db.name,
                     # a 'pretty' name for the training dataset
                     "hub_private_repo": self.hub_private_repo,
@@ -556,8 +555,13 @@ class Training():
                                 f"{self.language['iso']} - {self.language['name']}",
                     "finetuned_from": self.fqbasemodel,
                     "tasks": "automatic-speech-recognition",
-                    "token": pushtoken.token
                 }
+        try:
+            import pushtoken
+            kwargs.update({"token": pushtoken.token})
+        except:
+            pass
+        return kwargs
     def demo(self):
         d=Demo(self)
     def __init__(self,**kwargs):
