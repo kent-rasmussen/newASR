@@ -96,11 +96,11 @@ class Data:
         splits=list(map(lambda x:x+f'[:{getattr(self,"max_data_rows","")}]',self.data_splits))
         print(f"Using data splits {splits}")
         print(f"Using cache dir {self.dataset_dir} ({self.fqdatasetname} not found or refreshing it)")
-        kwargs={trust_remote_code=True,
-                cache_dir=self.dataset_dir
+        kwargs={'trust_remote_code':True,
+                'cache_dir'::self.dataset_dir
                 }
         if import readtoken:
-            kwargs.update({token=readtoken.token})
+            kwargs.update({'token':readtoken.token})
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
                                     self.language['mcv_code'],
                                     split='+'.join(splits),
