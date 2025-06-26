@@ -244,16 +244,26 @@ class Processor():
     def make_tokenizer(self):
         #this should just download or use from cache
         print("Downloading tokenizer or using from cache.")
-        self.tokenizer = self.tokenizer_fn.from_pretrained(self.fqmodelname_hf,
+        self.tokenizer = self.tokenizer_fn.from_pretrained(self.fqbasemodelname,
+                                            # self.fqmodelname_hf,
                                             # language=self.languagename,
-                                            task="transcribe",
+                                            # task="transcribe",
                                             # cache_dir=self.cache_dir
+                                            **self.tokenizer_fn_kwargs
                                             )
     def prepare_dataset(self,batch):
         audio = batch["audio"]
-        batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
+        try:
+            batch["input_features"] = self.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
+        except Exception as e:
+            # print(f"no self.feature_extractor? ({e})")
+            batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
         batch["input_length"] = len(batch["input_features"])
-        batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
+        try:
+            batch["labels"] = self.tokenizer(text=batch[self.transcription_field]).input_ids
+        except Exception as e:
+            # print(f"no self.tokenizer? ({e})")
+            batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
         return batch
     def do_prepare_dataset(self,dataset):
         if dataset.dataset_prepared:
@@ -270,21 +280,6 @@ class Processor():
         print(f"Going to save to disk as {dataset.datasetname_processed}: "
                 f"{dataset.dbd.column_names}, rows:{dataset.dbd.num_rows}")
         dataset.dbd.save_to_disk(dataset.fqdatasetname_processed)
-    def compute_metrics(self,pred):
-        pred_ids = pred.predictions
-        label_ids = pred.label_ids
-
-        # replace -100 with the pad_token_id
-        label_ids[label_ids == -100] = self.tokenizer.pad_token_id
-
-        # we do not want to group tokens when computing the metrics
-        pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-        label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-
-        errorrate = 100 * self.metric.compute(predictions=pred_str,
-                                                references=label_str)
-
-        return {"errorrate": errorrate}
     def from_pretrained(self,*args,**kwargs):
         return self.processor_parent_fn.from_pretrained(*args,**kwargs)
     def make_processor(self):
@@ -529,21 +524,10 @@ class Training():
                             report_to=["tensorboard"],
                             load_best_model_at_end=True,
                             #pick from 'eval_loss', 'eval_errorrate', 'eval_runtime', 'eval_samples_per_second', 'eval_steps_per_second', 'epoch'
-                            metric_for_best_model='eval_loss',
+                            metric_for_best_model=self.metric_name,
                             greater_is_better=False,
                             remove_unused_columns=False,
                             **kwargs)
-    def training_functions(self):
-        """This appears to not be used"""
-        self.processor = self.processor_fn.from_pretrained(self.model.fqname,
-                                            language=self.language['name'],
-                                            task="transcribe",
-                                            cache_dir=self.cache_dir
-                                            )
-        self.data_collator = self.data_collator_fn(
-            processor=self.processor,
-            decoder_start_token_id=self.model.config.decoder_start_token_id,
-            )
     def train(self):
         """
         /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/torch/utils/data/dataloader.py:665: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
@@ -583,6 +567,7 @@ class Training():
                                             'data',
                                             'data_collator',
                                             'compute_metrics',
+                                            'metric_name',
                                             'modelname',
                                             'data_collator_fn',
                                             'training_args_fn',
@@ -637,8 +622,9 @@ class Training():
                             eval_dataset=self.data["test"],
                             data_collator=self.data_collator,
                             compute_metrics=self.compute_metrics,
-                            # tokenizer=self.processor.feature_extractor #not tokenizer
-                            processing_class=self.processor.feature_extractor, #not tokenizer
+                            #Can't tell if either of the following matters:
+                            tokenizer=self.processor.feature_extractor #not tokenizer
+                            # processing_class=self.processor.feature_extractor, #not tokenizer
                             )
 class TrainWrapper(object):
     def get_data(self):
@@ -659,9 +645,15 @@ class TrainWrapper(object):
                 self.get_data()
             processor.do_prepare_dataset(self.data)
             self.data.cleanup() #data temp files
+        else:
+            print("Data looks already prepared")
         if getattr(self.names,'push_to_hub',False):
             print(f"Going to push to {self.names.fqmodelname} repo")
             processor.push_to_hub(self.names.fqmodelname)
+        if hasattr(processor,'tokenizer'):
+            self.tokenizer=processor.tokenizer
+        if hasattr(processor,'feature_extractor'):
+            self.feature_extractor=processor.feature_extractor
         #Processor object goes away at this point
         self.processor=processor.processor
     def get_base_model(self):
@@ -725,9 +717,7 @@ class TrainWrapper(object):
     def get_trainer(self):
         if (getattr(self.names,'train',False) or
             getattr(self.names,'push_to_hub',False)):
-            data_collator = self.names.data_collator_fn(
-                                                    processor=self.processor,
-                                                    **self.collator_fn_kwargs)
+            data_collator = self.names.data_collator_fn(**self.collator_fn_kwargs)
             self.trainer=Training(
                         model=self.model,
                         processor=self.processor, #downloads or builds above
@@ -819,7 +809,8 @@ class Nomenclature():
             'fqbasemodelname',
             'modelname',
             'cache_dir',
-            'language'
+            'language',
+            'sister_language_iso'
         ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def datakwargs(self):
@@ -876,6 +867,7 @@ class Nomenclature():
                 'eval_strategy',
                 'save_strategy',
                 'compute_metrics',
+                'metric_name',
                 'learning_rate',
                 'save_steps',
                 'eval_steps',
@@ -892,7 +884,7 @@ class Nomenclature():
                         "rw":{'mcv_code':'rw', 'iso':'kin', 'name':"Kinyarwanda"},
                         "lg":{'mcv_code':'lg', 'iso':'lug', 'name':"Luganda"},
                         "chr":{'iso':'chr', 'name':"Cherokee"},
-                        "hau":{'iso':'hau','name':"Hausa"}
+                        "hau":{'mcv_code':'ha','iso':'hau','name':"Hausa"}
                         }
     def setlang(self,**kwargs):
         self.init_languages()
@@ -976,17 +968,20 @@ class Nomenclature():
         if kwargs.get('increment'):
             tuned_bits+=[str(self.increment)] #in case this is int
         self.modelname='-'.join(tuned_bits)
-        if (getattr(self,'data_file_prefixes',None) and
-            self.data_file_prefixes[0].split('_')[-1].isdigit()): #test once for all
-            rows=str(sum([int(i.split('_')[-1]) for i in self.data_file_prefixes]))
+        if (self.dataset_code == 'csv' and
+                getattr(self,'data_file_prefixes',None) and
+                self.data_file_prefixes[0].split('_')[-1].isdigit()):
+            data_source=str(sum([int(i.split('_')[-1]) for i in self.data_file_prefixes]))
             # print(f"using {rows} rows")
-        else:
+        elif self.dataset_code == 'csv':
             print("getattr data_file_prefixes:",getattr(self,'data_file_prefixes',None))
             print("int:",int(self.data_file_prefixes[0].split('_')[-1]))
             print("int:",self.data_file_prefixes[0].split('_')[-1].isdigit())
             print("int options:",self.data_file_prefixes)
-            rows=''
-        self.modelname+=f'_{rows}x{str(self.num_train_epochs)}'
+            data_source=''
+        else:
+            data_source=self.dataset_code
+        self.modelname+=f'_{data_source}x{str(self.num_train_epochs)}'
         self.fqmodelname_loc=os.path.join(
                                         self.cache_dir_tuned,
                                         self.modelname)

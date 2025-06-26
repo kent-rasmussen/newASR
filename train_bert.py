@@ -70,6 +70,7 @@ class Processor(Wav2Vec2BertProcessor,train.Processor):
         return self.processor_parent_fn.from_pretrained(*args,**kwargs)
     def __init__(self,**kwargs):
         kwargs['processor_parent_fn']=Wav2Vec2BertProcessor
+        self.tokenizer_fn_kwargs={'task':"transcribe"}
         train.Processor.__init__(self,**kwargs)
         # Wav2Vec2BertProcessor.__init__()
 class TrainWrapper(train.TrainWrapper):
@@ -101,7 +102,7 @@ class TrainWrapper(train.TrainWrapper):
         self.init_debug()
         self.processor_fn_kwargs=self.names.processorkwargs()
         self.get_data_processor_model()
-        self.collator_fn_kwargs={padding:True}
+        self.collator_fn_kwargs={'processor':self.processor,'padding':True}
         self.get_trainer()
         super().__init__()
         #in compute_metrics only:
