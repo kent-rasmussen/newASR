@@ -103,7 +103,7 @@ class Data:
             import readtoken
             kwargs.update({'token':readtoken.token})
         except:
-            pass
+            kwargs.update({'use_auth_token':True})
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
                                     self.language['mcv_code'],
                                     split='+'.join(splits),
@@ -112,6 +112,7 @@ class Data:
         self.dbd["test"] = load_dataset(self.fqdatasetname,
                                     self.language['mcv_code'],
                                     split="test",
+                                    **kwargs
                                     ).select_columns(self.columns)
         self.dataset_prepared=False
         print(f"Found database {self.datasetprettyname} with "
