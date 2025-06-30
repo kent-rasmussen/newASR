@@ -657,9 +657,9 @@ class TrainWrapper(object):
             self.data.cleanup() #data temp files
         else:
             print("Data looks already prepared")
-        if getattr(self.names,'push_to_hub',False):
-            print(f"Going to push to {self.names.fqmodelname} repo")
-            processor.push_to_hub(self.names.fqmodelname)
+        if getattr(self.names,'push_to_hub',False) and self.names.fqmodelname_hf:
+            print(f"Going to push to {self.names.fqmodelname_hf} repo")
+            processor.push_to_hub(self.names.fqmodelname_hf)
         if hasattr(processor,'tokenizer'):
             self.tokenizer=processor.tokenizer
         if hasattr(processor,'feature_extractor'):
