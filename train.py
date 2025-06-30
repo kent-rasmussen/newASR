@@ -918,7 +918,7 @@ class Nomenclature():
             self.dataset_code='csv'
         self.parens_dirs_dict=str.maketrans('','',')(')
         d={
-            'mcv':"mozilla-foundation/common_voice_17_0",
+            'mcv17':"mozilla-foundation/common_voice_17_0",
             }
         if hasattr(self,'data_files'):
             d['csv']=f"Local CSV files ({', '.join(self.data_files)})"
