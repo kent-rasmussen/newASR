@@ -632,8 +632,8 @@ class Training():
                             data_collator=self.data_collator,
                             compute_metrics=self.compute_metrics,
                             #Can't tell if either of the following matters:
-                            tokenizer=self.processor.feature_extractor #not tokenizer
-                            # processing_class=self.processor.feature_extractor, #not tokenizer
+                            # tokenizer=self.processor.feature_extractor #not tokenizer
+                            processing_class=self.processor.feature_extractor, #not tokenizer
                             )
 class TrainWrapper(object):
     def get_data(self):
