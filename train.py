@@ -819,7 +819,7 @@ class Nomenclature():
             'modelname',
             'cache_dir',
             'language',
-            'sister_language_iso'
+            'sister_language'
         ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def datakwargs(self):
@@ -898,6 +898,7 @@ class Nomenclature():
     def setlang(self,**kwargs):
         self.init_languages()
         language_iso=kwargs.get('language_iso')
+        sister_language_iso=kwargs.get('sister_language_iso')
         if language_iso:
             try:
                 self.language=self.languages[language_iso]
@@ -911,6 +912,10 @@ class Nomenclature():
             print("You really need to specify your language with an ISO code "
             "(e.g., -l/--language-iso)")
             exit()
+        if sister_language_iso:
+            self.sister_language=self.languages[sister_language_iso]
+        else: #We may update a model with new data before finetuning to a sister
+            self.sister_language=self.languages[language_iso]
     def noparens_dirs(self,x):
         return '_'.join(x.translate(self.parens_dirs_dict).split(' '))
     def dataset_name(self,**kwargs):
