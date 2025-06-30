@@ -593,6 +593,7 @@ class Training():
             'logging_steps',
             'save_total_limit',
             'num_train_epochs',
+            'push_to_hub'
             ]
         overlap=set(for_training_arguments_kwargs)&set(
                                             not_for_training_arguments_kwargs)
@@ -885,7 +886,8 @@ class Nomenclature():
                 'logging_steps',
                 'save_total_limit',
                 'num_train_epochs',
-                ]
+                'push_to_hub'
+            ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def init_languages(self):
         self.languages={'gnd':{'mcv_code':'gnd', 'iso':'gnd', 'name':'Zulgo'},
