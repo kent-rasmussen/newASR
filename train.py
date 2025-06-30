@@ -828,6 +828,7 @@ class Nomenclature():
                 'data_files',
                 'data_file_location',
                 'language',
+                'sister_language',
                 'dataset_dir',
                 'transcription_field',
                 'max_data_rows',
