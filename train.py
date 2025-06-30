@@ -103,7 +103,8 @@ class Data:
             import readtoken
             kwargs.update({'token':readtoken.token})
         except:
-            kwargs.update({'use_auth_token':True})
+            pass
+            # kwargs.update({'use_auth_token':True})
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
                                     self.sister_language['mcv_code'],
                                     split='+'.join(splits),
