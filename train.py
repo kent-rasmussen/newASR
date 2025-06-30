@@ -105,12 +105,12 @@ class Data:
         except:
             kwargs.update({'use_auth_token':True})
         self.dbd["train"] = load_dataset(self.fqdatasetname, #This should be 1st
-                                    self.language['mcv_code'],
+                                    self.sister_language['mcv_code'],
                                     split='+'.join(splits),
                                     **kwargs
                                     ).select_columns(self.columns)
         self.dbd["test"] = load_dataset(self.fqdatasetname,
-                                    self.language['mcv_code'],
+                                    self.sister_language['mcv_code'],
                                     split="test",
                                     **kwargs
                                     ).select_columns(self.columns)
@@ -924,6 +924,7 @@ class Nomenclature():
             self.dataset_code='csv'
         self.parens_dirs_dict=str.maketrans('','',')(')
         d={
+            'mcv11':"mozilla-foundation/common_voice_11_0",
             'mcv17':"mozilla-foundation/common_voice_17_0",
             }
         if hasattr(self,'data_files'):
