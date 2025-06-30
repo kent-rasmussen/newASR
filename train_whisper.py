@@ -62,7 +62,8 @@ class Processor(WhisperProcessor,train.Processor):
         # These should come from names
         self.tokenizer_fn=kwargs['tokenizer_fn']
         self.fqbasemodelname=kwargs['fqbasemodelname']
-        self.tokenizer_fn_kwargs={'language':kwargs.pop('sister_language_iso'),
+        sister_language=kwargs.pop('sister_language')
+        self.tokenizer_fn_kwargs={'language':sister_language['name'],
                                     'task':"transcribe"}
         self.make_tokenizer()
         train.Processor.__init__(self,**kwargs)
@@ -100,7 +101,7 @@ class TrainWrapper(train.TrainWrapper):
     def set_whisper_langs(self):
         # print("possible language codes: "
         # f"{[i.strip('<>|') for i in self.model.generation_config.lang_to_id.keys()]}")
-        self.model.generation_config.language = self.names.sister_language_iso
+        self.model.generation_config.language = self.names.sister_language['mcv_code']
         self.model.generation_config.task = "transcribe"
         self.model.generation_config.forced_decoder_ids = None
         self.model.generation_config.use_cache=True
