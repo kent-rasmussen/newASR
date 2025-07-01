@@ -104,7 +104,8 @@ class TrainWrapper(train.TrainWrapper):
         self.model.generation_config.language = self.names.sister_language['mcv_code']
         self.model.generation_config.task = "transcribe"
         self.model.generation_config.forced_decoder_ids = None
-        self.model.generation_config.use_cache=True
+        # self.model.generation_config.use_cache=True
+        self.model.generation_config.use_cache=self.names.use_cache_in_training
     def __init__(self,model_type,trainer_type,my_options_args):
         # past_key_values=EncoderDecoderCache.from_legacy_cache(past_key_values)
         self.get_names(model_type,trainer_type,my_options_args)
