@@ -95,6 +95,8 @@ class Data:
         self.dbd = DatasetDict()
         splits=list(map(lambda x:x+f'[:{getattr(self,"max_data_rows","")}]',self.data_splits))
         print(f"Using data splits {splits}")
+        test=f'test[:{getattr(self,"max_data_rows","")}]'
+        print(f"Using test split {test}")
         print(f"Using cache dir {self.dataset_dir} ({self.fqdatasetname} not found or refreshing it)")
         kwargs={'trust_remote_code':True,
                 'cache_dir':self.dataset_dir
@@ -112,7 +114,7 @@ class Data:
                                     ).select_columns(self.columns)
         self.dbd["test"] = load_dataset(self.fqdatasetname,
                                     self.sister_language['mcv_code'],
-                                    split="test",
+                                    split=test,
                                     **kwargs
                                     ).select_columns(self.columns)
         self.dataset_prepared=False
