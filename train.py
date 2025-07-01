@@ -250,7 +250,8 @@ class Processor():
         #                             hub_private_repo=self.hub_private_repo)
     def make_tokenizer(self):
         #this should just download or use from cache
-        print("Downloading tokenizer or using from cache.")
+        print("Downloading tokenizer or using from cache. "
+                f"({self.tokenizer_fn_kwargs})")
         self.tokenizer = self.tokenizer_fn.from_pretrained(self.fqbasemodelname,
                                             # self.fqmodelname_hf,
                                             # language=self.languagename,
