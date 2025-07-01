@@ -140,13 +140,13 @@ if __name__ == '__main__':
     """‘remake_processor’ happens anyway if not found"""
     """‘reload_model’ causes a large download!"""
     my_options.args.update({
-            'dataset_code':'mcv',
-            'data_splits':['train'],
+            'dataset_code':'mcv17',
+            'data_splits':['train','validation'],
             'language_iso':'hau',
             # 'dataset_code':'csv',
             # 'language_iso':'gnd',
             # 'sister_language_iso': 'hau',
-            'sister_language_iso': 'ha',
+            'sister_language_iso': 'hau',
             'cache_dir':'/media/kentr/hfcache',
             # 'data_file_prefixes':['lexicon_640'],#,'examples_4589'
             # 'data_file_prefixes':['lexicon_13'],#,'examples_4589'
