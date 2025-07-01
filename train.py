@@ -665,10 +665,16 @@ class TrainWrapper(object):
             # processor.push_to_hub(self.names.fqmodelname_hf)
         if hasattr(processor,'tokenizer'):
             self.tokenizer=processor.tokenizer
+        elif hasattr(processor.processor,'tokenizer'):
+            self.tokenizer=processor.processor.tokenizer
         if hasattr(processor,'feature_extractor'):
             self.feature_extractor=processor.feature_extractor
+        elif hasattr(processor.processor,'feature_extractor'):
+            self.feature_extractor=processor.processor.feature_extractor
         #Processor object goes away at this point
         self.processor=processor.processor
+        for i in [self.processor,self.feature_extractor,self.tokenizer]:
+            print("Using",type(i))
     def get_base_model(self):
         model=BaseModel(
                         # vocab_size=len(self.processor.tokenizer),
