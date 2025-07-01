@@ -526,6 +526,7 @@ class Training():
                             # Not for LoRA:
                             # gradient_checkpointing=True,
                             fp16=True,
+                            predict_with_generate = True,
                             # eval_strategy="steps",
                             # evaluation_strategy
                             report_to=["tensorboard"],
@@ -595,6 +596,7 @@ class Training():
             'logging_steps',
             'save_total_limit',
             'num_train_epochs',
+            'lr_scheduler_type',
             'push_to_hub'
             ]
         overlap=set(for_training_arguments_kwargs)&set(
@@ -889,6 +891,7 @@ class Nomenclature():
                 'compute_metrics',
                 'metric_name',
                 'learning_rate',
+                'lr_scheduler_type',
                 'save_steps',
                 'eval_steps',
                 'logging_steps',
