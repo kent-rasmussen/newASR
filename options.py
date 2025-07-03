@@ -166,7 +166,9 @@ class Parser(object):
                 }),
             ('-a', '--audio',
                 {'help':"Audio file to infer (convert to text)",
-                    'action':'append'
+                    'action':'append',
+                    # 'required':False,
+                    'default':[]
                 })
                 ]
         self.arg_sets=list(args)
