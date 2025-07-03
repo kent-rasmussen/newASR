@@ -152,12 +152,12 @@ class Parser(object):
                 {'help':"Use Quantization",
                     'action':'store_true'
                 }),
-            ('--attention-dropout',{}),
-            ('--hidden-dropout',{}),
-            ('--feat-proj-dropout',{}),
-            ('--mask-time-prob',{}),
-            ('--layerdrop',{}),
-            ('--ctc-loss-reduction',{})
+            # ('--attention-dropout',{}),
+            # ('--hidden-dropout',{}),
+            # ('--feat-proj-dropout',{}),
+            # ('--mask-time-prob',{}),
+            # ('--layerdrop',{}),
+            # ('--ctc-loss-reduction',{})
         ]
         self.infer = [
             ('-i', '--infer',
