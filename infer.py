@@ -113,9 +113,11 @@ class InferDict(dict):
         self.models=models
         if checkpoints:
             self.infer_checkpoints()
-        print("going to infer",self.models)
+        print("Trying to load models at",self.models)
         for i in self.models:
             self[i]=Infer(i)
+            if not self[i].loaded:
+                del self[i]
         print("going to infer",self.models)
 if __name__ == '__main__':
     import options
