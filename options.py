@@ -136,8 +136,8 @@ class Parser(object):
                     "(The remaining will be used for validation)",
                     'default':0.9
                 }),
-            ('-m','--remake-model',
-                {'help':"Remake Model (even if found cached)",
+            ('-m','--reload-model',
+                {'help':"Reload Model (even if found cached)",
                     'action':'store_true'
                 }),
             ('--lora',
