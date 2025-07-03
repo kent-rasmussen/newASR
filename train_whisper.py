@@ -13,62 +13,17 @@
 # import bz2
 # exit()
 # from datasets import load_dataset, DatasetDict, concatenate_datasets, Audio
-from transformers import WhisperFeatureExtractor, WhisperTokenizer
-from transformers import WhisperProcessor
-from transformers import WhisperForConditionalGeneration
-from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+# from transformers import WhisperFeatureExtractor, WhisperTokenizer
+# from transformers import WhisperProcessor
+# from transformers import WhisperForConditionalGeneration
+# from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 #for DataCollatorSpeechSeq2SeqWithPadding:
-from dataclasses import dataclass
+# from dataclasses import dataclass
 import evaluate
 import torch
-from typing import Any, Dict, List, Union
+# from typing import Any, Dict, List, Union
 import sys
 import train #this is mine
-
-@dataclass
-class DataCollatorSpeechSeq2SeqWithPadding:
-    processor: Any
-    decoder_start_token_id: int
-
-    def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # split inputs and labels since they have to be of different lengths and need different padding methods
-        # first treat the audio inputs by simply returning torch tensors
-        input_features = [{"input_features": feature["input_features"]} for feature in features]
-        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
-
-        # get the tokenized label sequences
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
-        # pad the labels to max length
-        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
-
-        # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
-
-        # if bos token is appended in previous tokenization step,
-        # cut bos token here as it's append later anyways
-        if (labels[:, 0] == self.decoder_start_token_id).all().cpu().item():
-            labels = labels[:, 1:]
-
-        batch["labels"] = labels
-
-        return batch
-
-class Processor(WhisperProcessor,train.Processor):
-    def from_pretrained(self,*args,**kwargs):
-        # print(args,kwargs)
-        return self.processor_parent_fn.from_pretrained(*args,**kwargs)
-    def __init__(self,**kwargs):
-        kwargs['processor_parent_fn']=WhisperProcessor
-        # These should come from names
-        self.tokenizer_fn=kwargs['tokenizer_fn']
-        self.fqbasemodelname=kwargs['fqbasemodelname']
-        sister_language=kwargs.pop('sister_language')
-        self.tokenizer_fn_kwargs={'language':sister_language['name'],
-                                    'task':"transcribe"}
-        self.make_tokenizer()
-        train.Processor.__init__(self,**kwargs)
-        # 'tokenizer_fn':WhisperTokenizer,
-        # 'feature_extractor_fn':WhisperFeatureExtractor,
 
 class TrainWrapper(train.TrainWrapper):
     # def get_base_model(self):
@@ -79,19 +34,6 @@ class TrainWrapper(train.TrainWrapper):
     #                     )
     #     #BaseModel object goes away at this point
     #     self.model=model.model
-    def compute_metrics(self,pred):
-        pred_ids = pred.predictions
-        label_ids = pred.label_ids
-
-        # replace -100 with the pad_token_id
-        label_ids[label_ids == -100] = self.tokenizer.pad_token_id
-        # we do not want to group tokens when computing the metrics
-        pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-        label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-
-        error = 100 * self.metric.compute(predictions=pred_str, references=label_str)
-
-        return {self.names.metric_name: error}
         # return {"wer": wer}
     # def get_processor(self):
     #     processor=self.names.processor_fn(**self.names.processorkwargs())
@@ -120,15 +62,15 @@ class TrainWrapper(train.TrainWrapper):
         #in compute_metrics only:
         self.metric = evaluate.load(self.names.metric_name)
         self.do_stuff()
-def clear_unused_args(x):
-    for arg in ['attention_dropout',
-                'hidden_dropout',
-                'feat_proj_dropout',
-                'mask_time_prob',
-                'layerdrop',
-                'ctc_loss_reduction',
-                ]:
-        x.pop(arg)
+# def clear_unused_args(x):
+#     for arg in ['attention_dropout',
+#                 'hidden_dropout',
+#                 'feat_proj_dropout',
+#                 'mask_time_prob',
+#                 'layerdrop',
+#                 'ctc_loss_reduction',
+#                 ]:
+#         x.pop(arg)
 def make_options():
     import options
     return options.Parser('train','infer')
