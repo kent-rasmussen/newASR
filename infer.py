@@ -97,7 +97,8 @@ class Infer(object):
         if not hasattr(self,'model') or not isinstance(self.model,
                                                         self.get_model_fn()):
             print("sorry, model(s) at "
-                    f"{str(repos).strip('(),')} not loaded; inference will fail.")
+                    f"{str(repos).strip('(),')} not loaded; "
+                    "inference will fail.")
 class InferDict(dict):
     def infer_checkpoints(self):
         for m in self.models.copy():
