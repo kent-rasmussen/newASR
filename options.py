@@ -70,6 +70,27 @@ class Parser(object):
             ('--cache-dir-tuned',
                 {'help':"Directory to store tuned models",
             }),
+            ('--use-cache-in-training',
+                {'help':"Send use_cache in training",
+                'action':'store_true'
+            }),
+            ('--lr-scheduler-type',
+                {'help':"Set learning rate scheduler type:"
+                    "“linear” → transformers.get_linear_schedule_with_warmup"
+                    "“cosine” → transformers.get_cosine_schedule_with_warmup"
+                    "“cosine_with_restarts” -->transformers.get_cosine_with_hard_restarts_schedule_with_warmup"
+                    "“polynomial” → transformers.get_polynomial_decay_schedule_with_warmup"
+                    "“constant” → transformers.get_constant_schedule"
+                    "“constant_with_warmup” → transformers.get_constant_schedule_with_warmup"
+                    "“inverse_sqrt” → transformers.get_inverse_sqrt_schedule“linear” → transformers.get_linear_schedule_with_warmup"
+                    "“cosine” → transformers.get_cosine_schedule_with_warmup"
+                    "“cosine_with_restarts” -->transformers.get_cosine_with_hard_restarts_schedule_with_warmup"
+                    "“polynomial” → transformers.get_polynomial_decay_schedule_with_warmup"
+                    "“constant” → transformers.get_constant_schedule"
+                    "“constant_with_warmup” → transformers.get_constant_schedule_with_warmup"
+                    "“inverse_sqrt” → transformers.get_inverse_sqrt_schedule",
+                'default':'linear'
+            }),
             ('-p', '--push-to-hub',
                 {'help':"Store model and processor on HuggingFace",
                 'action':'store_true'
