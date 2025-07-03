@@ -207,12 +207,10 @@ class ArgumentParser(argparse.ArgumentParser):
     def finalize(self):
         self.args = vars(self.parse_args())
         for i in [
-            # This should be a list, even if user doesn't think of it this way:
-                # ('data_file_prefix','data_file_prefixes'),
                 ('special_characters_ok','no_special_characters'),
                 ('capital_letters_ok','no_capital_letters')
-                ]: #conver first to second
-            self.args[i[1]]=self.args.pop(i[0])
+                ]: #convert first to second
+            self.args[i[1]]=not self.args.pop(i[0])
     def __init__(self, options, **kwargs):
         prog='ASR_Trainer'
         description='This module programmatically trains Automatic '
