@@ -212,6 +212,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 ]: #convert first to second
             self.args[i[1]]=not self.args.pop(i[0])
     def __init__(self, options, **kwargs):
+        print(f"Argument Parser dealing with kwargs {kwargs}")
+        print(f"Argument Parser dealing with options {options}")
         prog='ASR_Trainer'
         description='This module programmatically trains Automatic '
         'Speech Recognition (ASR) modules, for scalable mass '
@@ -233,6 +235,12 @@ if __name__ == '__main__':
     options=Parser('train','infer')
     print(type(options))
     print(options.args)
+    if 'audio' in options.args:
+        print('True')
+    else:
+        print('False')
+    exit()
+
     # options=Parser(parents=[options],arg_set='demo')
     # print(type(options))
     # print(options.args)
