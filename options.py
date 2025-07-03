@@ -61,7 +61,7 @@ class Parser(object):
                 }),
             ('-l', '--language-iso',
                 {'help':"ISO 639-3 (Ethnologue) code of language",
-                'required':has_argv()
+                # 'required':has_argv()
             }),
             ('-s', '--sister-language-iso',
                 {'help':"ISO 639-3 (Ethnologue) code of a related language"
