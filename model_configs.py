@@ -123,4 +123,5 @@ def whisper():
             'trainer_fn':Seq2SeqTrainer,
             'predict_with_generate':True,
             'compute_metrics_fn_name':'compute_metrics_whisper',
+            'use_cache_in_training': True,
         }
