@@ -3,9 +3,9 @@
 # This was originally based on https://huggingface.co/blog/fine-tune-w2v2-bert,
 # though it has been generalized and adapted from other sources, as well.
 
-from transformers import TrainingArguments, Trainer, AutoModelForCTC
-from transformers import Wav2Vec2CTCTokenizer, SeamlessM4TFeatureExtractor
-from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor
+# from transformers import TrainingArguments, Trainer, AutoModelForCTC
+# from transformers import Wav2Vec2CTCTokenizer, SeamlessM4TFeatureExtractor
+# from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor
 from transformers import pipeline
 from transformers import BitsAndBytesConfig
 from dataclasses import dataclass
@@ -42,99 +42,17 @@ class Data(train.Data):
     def __init__(self,**kwargs):
         kwargs['make_vocab']=True
         super().__init__(**kwargs)
-class Processor(Wav2Vec2BertProcessor,train.Processor):
-    def verify_json(self,json_file):
-        defaults=set(['<unk>','<pad>','|'])
-        with open(json_file, 'r') as vocab_file:
-            d=json.load(vocab_file)
-            defaults_present=defaults&set(d)
-            if len(defaults_present) == len(defaults):
-                print(f"all defaults ({defaults}) found in json file.")
-                with open('vocab.json', 'w') as f:
-                    json.dump(d,f)
-            else:
-                print(f"json file missing default value(s) {defaults-set(d)}")
-    def make_tokenizer(self):
-        print("Building tokenizer from (local) json file.")
-        json_file=f"vocab_{self.language['iso']}.json"
-        try:
-            self.verify_json(json_file)
-        except FileNotFoundError as e:
-            print(f"It looks like the json file didn't get made; "
-                "be sure to set make_vocab=True in data load ({e})")
-            exit()
-        self.tokenizer = self.tokenizer_fn.from_pretrained('./',
-                                        tokenizer_class= 'Wav2Vec2CTCTokenizer')
-    def from_pretrained(self,*args,**kwargs):
-        # print(args,kwargs)
-        return self.processor_parent_fn.from_pretrained(*args,**kwargs)
-    def __init__(self,**kwargs):
-        kwargs['processor_parent_fn']=Wav2Vec2BertProcessor
-        self.tokenizer_fn_kwargs={'task':"transcribe"}
-        train.Processor.__init__(self,**kwargs)
-        # Wav2Vec2BertProcessor.__init__()
 class TrainWrapper(train.TrainWrapper):
-    def get_base_model(self):
-        model=train.BaseModel(
-                        vocab_size=len(self.processor.tokenizer),
-                        pad_token_id=self.processor.tokenizer.pad_token_id,
-                        **self.names.modelkwargs()
-                        )
-        #BaseModel object goes away at this point
-        self.model=model.model
-    def compute_metrics(self,pred):
-        """This needs to be here because the processor may be loaded
-        without the train class around it."""
-        pred_logits = pred.predictions
-        pred_ids = numpy.argmax(pred_logits, axis=-1)
-
-        pred.label_ids[pred.label_ids == -100] = self.processor.tokenizer.pad_token_id
-
-        pred_str = self.processor.batch_decode(pred_ids)
-        # we do not want to group tokens when computing the metrics
-        label_str = self.processor.batch_decode(pred.label_ids, group_tokens=False)
-
-        error = self.metric.compute(predictions=pred_str, references=label_str)
-
-        return {self.names.metric_name: error}
     def __init__(self,model_type,trainer_type,my_options_args):
         self.get_names(model_type,trainer_type,my_options_args)
         self.init_debug()
         self.processor_fn_kwargs=self.names.processorkwargs()
         self.get_data_processor_model()
-        self.collator_fn_kwargs={'processor':self.processor,'padding':True}
         self.get_trainer()
         super().__init__()
         #in compute_metrics only:
         self.metric = evaluate.load(self.names.metric_name)
         self.do_stuff()
-@dataclass
-class DataCollatorCTCWithPadding:
-    processor: Wav2Vec2BertProcessor
-    padding: Union[bool, str] = True
-    def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-        # split inputs and labels since they have to be of different lenghts and need
-        # different padding methods
-        input_features = [{"input_features": feature["input_features"]} for feature in features]
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
-
-        batch = self.processor.pad(
-            input_features,
-            padding=self.padding,
-            return_tensors="pt",
-        )
-
-        labels_batch = self.processor.pad(
-            labels=label_features,
-            padding=self.padding,
-            return_tensors="pt",
-        )
-        # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
-
-        batch["labels"] = labels
-
-        return batch
 def make_options():
     import options
     return options.Parser('train','infer')
@@ -165,18 +83,20 @@ if __name__ == '__main__':
                 'cache_dir':'.',
             })
     my_options.sanitize() # wait until everyting is set to do this
-    model_type={
-                'fqbasemodelname':"facebook/w2v-bert-2.0",
-                'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
-                'tokenizer_fn':Wav2Vec2CTCTokenizer,
-                'feature_extractor_fn':SeamlessM4TFeatureExtractor,
-                # 'processor_fn':Wav2Vec2BertProcessor,
-                'processor_fn':Processor,
-                }
+    from model_configs import w2v_bert_2
+    model_type=w2v_bert_2()
+    # {
+    #             'fqbasemodelname':"facebook/w2v-bert-2.0",
+    #             'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
+    #             'tokenizer_fn':Wav2Vec2CTCTokenizer,
+    #             'feature_extractor_fn':SeamlessM4TFeatureExtractor,
+    #             # 'processor_fn':Wav2Vec2BertProcessor,
+    #             'processor_fn':Processor,
+    #             }
     trainer_type={
-                'data_collator_fn':DataCollatorCTCWithPadding,
-                'training_args_fn':TrainingArguments,
-                'trainer_fn':Trainer,
+                # 'data_collator_fn':DataCollatorCTCWithPadding,
+                # 'training_args_fn':TrainingArguments,
+                # 'trainer_fn':Trainer,
                 'learning_rate':1e-5,
                 'per_device_train_batch_size':16,
                 'save_steps':20,

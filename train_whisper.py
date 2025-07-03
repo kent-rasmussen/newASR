@@ -100,7 +100,6 @@ if __name__ == '__main__':
             # 'remake_processor':True, #
             # 'reload_model':True
         })
-    clear_unused_args(my_options.args)
     if 'google.colab' in sys.modules:
         print("It looks like we're running in a colab instance, so setting "
             "some variables now.")
@@ -108,20 +107,25 @@ if __name__ == '__main__':
                 'cache_dir':'.',
             })
     my_options.sanitize() # wait until everyting is set to do this
-    model_type={
-                'fqbasemodelname':"openai/whisper-tiny", #small,large, medium, base, large-v3-turbo
-                # "efficient-speech/lite-whisper-large-v3-turbo"
-                'getmodel_fn':WhisperForConditionalGeneration, #for tuned models
-                'tokenizer_fn':WhisperTokenizer,
-                'feature_extractor_fn':WhisperFeatureExtractor,
-                'processor_fn':Processor,
-                }
+    from model_configs import whisper
+    model_type=whisper()
+    model_type.update({'fqbasemodelname':"openai/whisper-tiny"})
+    # model_type={
+    #             # 'fqbasemodelname':"openai/whisper-tiny", #small,large, medium, base, large-v3-turbo
+    #             'fqbasemodelname':'openai/whisper-large-v3',
+    #             # "efficient-speech/lite-whisper-large-v3-turbo"
+    #             'getmodel_fn':WhisperForConditionalGeneration, #for tuned models
+    #             'tokenizer_fn':WhisperTokenizer,
+    #             'feature_extractor_fn':WhisperFeatureExtractor,
+    #             'processor_fn':Processor,
+    #             }
 
     trainer_type={
-                'data_collator_fn':DataCollatorSpeechSeq2SeqWithPadding,
-                'training_args_fn':Seq2SeqTrainingArguments,
-                'trainer_fn':Seq2SeqTrainer,
+                # 'data_collator_fn':DataCollatorSpeechSeq2SeqWithPadding,
+                # 'training_args_fn':Seq2SeqTrainingArguments,
+                # 'trainer_fn':Seq2SeqTrainer,
                 'learning_rate':1e-5,
+                # 'lr_scheduler_type':"linear",
                 'per_device_train_batch_size':16,
                 'save_steps':20,
                 # load_best_model_at_end requires the save and eval strategy to match
