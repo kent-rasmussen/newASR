@@ -40,7 +40,10 @@ class Parser(object):
         if 'google.colab' in sys.modules:
             print("It looks like we're running in a colab instance, so setting "
                 "some variables now.")
-            self.args.update({'cache_dir':'.',})
+            self.args.update({
+                    'cache_dir':'.',
+                    'data_file_location':'/content/drive/MyDrive/training_data'
+                    })
         if not self.args.get('cache_dir_tuned'):
             self.args.update({'cache_dir_tuned':self.args.get('cache_dir')})
     def __init__(self,*args):#_sets=set(),parents=[]):
