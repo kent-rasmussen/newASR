@@ -27,8 +27,9 @@ if __name__ == '__main__':
                             # 'remake_processor':True, #any case if not found
                             # 'reload_model':True #large download!
                             })
-    """Pick one of the following three:"""
-    # my_options.args.update(train.options.minimal_zulgo_test_options())
+    """Pick one of the following four:"""
+    my_options.args.update(train.options.minimal_zulgo_test_options())
+    # my_options.args.update(train.options.maximal_zulgo_test_options())
     # my_options.args.update({
     #                         'dataset_code':'mcv17',
     #                         'data_splits':['train','validation'],
@@ -36,13 +37,14 @@ if __name__ == '__main__':
     #                         'sister_language_iso': 'hau',
     #                         # 'max_data_rows':20,
     #                         })
-    my_options.args.update({
-                            'dataset_code':'csv',
-                            'language_iso':'gnd',
-                            'data_file_prefixes':['lexicon_640'],
-                            # 'data_file_prefixes':['examples_4589'],
-                            # 'data_file_prefixes':['lexicon_13'],
-                            })
+    # my_options.args.update({
+    #                         'dataset_code':'csv',
+    #                         'language_iso':'gnd',
+    #                         'data_file_prefixes':['lexicon_640'],
+    #                         # 'data_file_prefixes':['examples_4589'],
+    #                         # 'data_file_prefixes':['lexicon_13'],
+    #                         })
+    my_options.sanitize()
     print(my_options.args)
     trainer_type={
                 'gradient_checkpointing':True,
