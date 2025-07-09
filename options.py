@@ -20,7 +20,7 @@ def maximal_zulgo_test_options():
     return {
         'dataset_code':'csv',
         'language_iso':'gnd',
-        'data_file_prefixes':['lexicon_13','examples_4589']
+        'data_file_prefixes':['lexicon_640','examples_4589']
     }
 class Parser(object):
     def do_arg_set(self,arg_set):
