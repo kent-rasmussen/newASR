@@ -4,7 +4,7 @@ huggingface_hub>=0.30.2
 intel_extension_for_pytorch>=2.7.0
 jiwer>=4.0.0
 librosa>=0.11.0
-logsetup>=1.2
+logsetup==1.2
 numpy>=2.3.1
 peft==0.16.0
 Requests>=2.32.4
