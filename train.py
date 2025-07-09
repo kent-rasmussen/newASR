@@ -6,7 +6,7 @@ from datasets import load_dataset, load_from_disk
 from datasets import DatasetDict, concatenate_datasets, Audio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+# from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 import torch
 import evaluate
 import re
@@ -443,52 +443,52 @@ class Processor():
             print("Loaded Processor.FeatureExtractor:",
                             self.processor.feature_extractor.__class__.__name__)
 class BaseModel():
-    def get_peftOK_layer_names(self):
-        layer_names = []
-        layer_types = []
-        lora_modules=(torch.nn.Linear,
-                        # torch.nn.Embedding,
-                        # torch.nn.Conv2d,
-                        # torch.nn.Conv3d,
-                        # Conv1D,
-                        # torch.nn.MultiheadAttention
-                        # # torch.nn.Conv1d,
-                    )
-        # Recursively visit all modules and submodules
-        for name, module in self.model.named_modules():
-            # Check if the module is an instance of the specified layers
-            if isinstance(module, lora_modules):
-                # model name parsing
-                # print('found', name, module)
-                # print(name.split('.')[-1])
-                layer_types.append(type(module))
-                layer_names.append(name.split('.')[-1])
-        print('peftOK_layer_names:',list(set(layer_names)))
-        print('peftOK_layer_types:',list(set(layer_types)))
-        return list(set(layer_names))
-    def use_lora(self):
-        # /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/peft/tuners/tuners_utils.py:550: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['model.decoder.embed_tokens'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
-        self.check_for_input_embeddings_method()
-        lora_config = LoraConfig(
-                                    #per https://discuss.huggingface.co/t/unexpected-keywork-argument/91356:
-                                    # task_type=TaskType.SEQ_2_SEQ_LM,
-                                    task_type=TaskType('SEQ_2_SEQ_LM'),#'automatic-speech-recognition',
-                                    inference_mode=False,
-                                    r=8,
-                                    lora_alpha=32,
-                                    lora_dropout=0.1,
-                                    target_modules=self.get_peftOK_layer_names(),
-                                    # save_embedding_layers=True #necessary when changing vocab
-                                )
-        # model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
-        # model = get_peft_model(model, peft_config)
-        self.model = get_peft_model(self.model, lora_config)
-        # This should be used to load a file saved earlier:
-        # self.model = PeftModel.from_pretrained(model=self.model,
-        #                                         model_id=<location on file system>
-        #                         is_trainable=True)
-        self.model.print_trainable_parameters()
-        self.did_lora=True
+    # def get_peftOK_layer_names(self):
+    #     layer_names = []
+    #     layer_types = []
+    #     lora_modules=(torch.nn.Linear,
+    #                     # torch.nn.Embedding,
+    #                     # torch.nn.Conv2d,
+    #                     # torch.nn.Conv3d,
+    #                     # Conv1D,
+    #                     # torch.nn.MultiheadAttention
+    #                     # # torch.nn.Conv1d,
+    #                 )
+    #     # Recursively visit all modules and submodules
+    #     for name, module in self.model.named_modules():
+    #         # Check if the module is an instance of the specified layers
+    #         if isinstance(module, lora_modules):
+    #             # model name parsing
+    #             # print('found', name, module)
+    #             # print(name.split('.')[-1])
+    #             layer_types.append(type(module))
+    #             layer_names.append(name.split('.')[-1])
+    #     print('peftOK_layer_names:',list(set(layer_names)))
+    #     print('peftOK_layer_types:',list(set(layer_types)))
+    #     return list(set(layer_names))
+    # def use_lora(self):
+    #     # /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/peft/tuners/tuners_utils.py:550: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['model.decoder.embed_tokens'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
+    #     self.check_for_input_embeddings_method()
+    #     lora_config = LoraConfig(
+    #                                 #per https://discuss.huggingface.co/t/unexpected-keywork-argument/91356:
+    #                                 # task_type=TaskType.SEQ_2_SEQ_LM,
+    #                                 task_type=TaskType('SEQ_2_SEQ_LM'),#'automatic-speech-recognition',
+    #                                 inference_mode=False,
+    #                                 r=8,
+    #                                 lora_alpha=32,
+    #                                 lora_dropout=0.1,
+    #                                 target_modules=self.get_peftOK_layer_names(),
+    #                                 # save_embedding_layers=True #necessary when changing vocab
+    #                             )
+    #     # model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
+    #     # model = get_peft_model(model, peft_config)
+    #     self.model = get_peft_model(self.model, lora_config)
+    #     # This should be used to load a file saved earlier:
+    #     # self.model = PeftModel.from_pretrained(model=self.model,
+    #     #                                         model_id=<location on file system>
+    #     #                         is_trainable=True)
+    #     self.model.print_trainable_parameters()
+    #     self.did_lora=True
     def use_quantization(self):
         from transformers import pipeline
 
