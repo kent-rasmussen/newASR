@@ -10,6 +10,18 @@ def has_argv():
     val=not bool('google.colab' in sys.modules
                         or len(sys.argv) == 1)#just exe, no other args
     return val
+def minimal_zulgo_test_options():
+    return {
+        'dataset_code':'csv',
+        'language_iso':'gnd',
+        'data_file_prefixes':['lexicon_13'],#,'examples_4589'
+    }
+def maximal_zulgo_test_options():
+    return {
+        'dataset_code':'csv',
+        'language_iso':'gnd',
+        'data_file_prefixes':['lexicon_13','examples_4589']
+    }
 class Parser(object):
     def do_arg_set(self,arg_set):
         self.default_list=getattr(self,arg_set)
@@ -25,8 +37,12 @@ class Parser(object):
         except ValueError:
             pass #'base' isn't in this list, ever.
     def sanitize(self):
+        if 'google.colab' in sys.modules:
+            print("It looks like we're running in a colab instance, so setting "
+                "some variables now.")
+            self.args.update({'cache_dir':'.',})
         if not self.args.get('cache_dir_tuned'):
-            self.args['cache_dir_tuned']=self.args.get('cache_dir')
+            self.args.update({'cache_dir_tuned':self.args.get('cache_dir')})
     def __init__(self,*args):#_sets=set(),parents=[]):
         arg_sets_ok={'base','train','infer'}
         if set(args)-arg_sets_ok:
