@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding=UTF-8
+#This started from a number of https://huggingface.co/blog/ entries on fine tuning
 import os
 from datasets import load_dataset, load_from_disk
 from datasets import DatasetDict, concatenate_datasets, Audio
@@ -7,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 import torch
+import evaluate
 import re
 import numpy
 import random
@@ -20,9 +22,9 @@ import huggingface_hub
 try:
     import readtoken
 except ModuleNotFoundError:
-    print("To download some data sets from HuggingFace, provide your "
-        "read token in readtoken.py (not found), \nor log in with "
-        "notebook_login()")
+    print("No read token found; if you have not logged in with "
+        "notebook_login(), you will not be able to get data from gated repos")
+import options
 debug=False
 # self.token=readtoken.token
 # import pushtoken
@@ -153,6 +155,18 @@ class Data:
                 pick = random.randint(0, len(dataset)-1)
             picks.append(pick)
         print(dataset[picks])
+    def make_vocab_dict(self):
+        if not self.load_chars_from_file():
+            self.do_extract_all_chars()
+        #use defaults from https://huggingface.co/transformers/v4.5.1/model_doc/wav2vec2.html#wav2vec2ctctokenizer
+        if True: #I need to think if this is a good idea:
+            self.vocab_dict[self.data_tokens[ #"make 'sp' more visible"
+                                'word_delimiter_token']] = self.vocab_dict[" "]
+            del self.vocab_dict[" "]
+        self.vocab_dict[self.data_tokens['unk_token']] = len(self.vocab_dict)
+        self.vocab_dict[self.data_tokens['pad_token']] = len(self.vocab_dict)
+        # len(self.vocab_dict)
+        return self.vocab_dict
     def show_dimensions_preprocessed(self):
         if self.dataset_prepared:
             return
@@ -199,7 +213,13 @@ class Data:
         # from some file, and make something of the form
         self.vocab_dict = {v:k for k,v in enumerate(sorted(char_list))}
     def extract_all_chars(self,batch):
-        all_text = " ".join(batch[self.transcription_field])
+        try:
+            all_text = " ".join(batch[self.transcription_field])
+        except KeyError:
+            print("It looks like your data may be already processed, "
+            "but we need the unprocessed data to make an up-to-date "
+            "tokenizer, which we want to make sure reflects this data set.")
+            quit()
         vocab = list(set(all_text))
         return {"vocab": [vocab], "all_text": [all_text]}
     def do_extract_all_chars(self):
@@ -213,9 +233,10 @@ class Data:
         char_list = list(set(self.vocab["train"]["vocab"][0]) |
                         set(self.vocab["test"]["vocab"][0]))
         print(self.dbd["train"][0][self.transcription_field])
-        print(f"char_list ({len(char_list)}):", char_list)
+        # print(f"char_list ({len(char_list)}):", char_list)
         self.vocab_dict = {v:k for k,v in enumerate(sorted(char_list))}
-        print(f"self.vocab_dict ({len(self.vocab_dict)}):",self.vocab_dict)
+        print("self.vocab_dict compiled from this data "
+                f"({len(self.vocab_dict)}):",self.vocab_dict)
     def cleanup(self):
         if hasattr(self,'tmp') and os.path.exists(self.tmp):
             for file in os.listdir(self.tmp):
@@ -239,8 +260,6 @@ class Data:
                 self.do_to_lower_case()
             if kwargs.get('no_latin_characters'):
                 self.do_remove_latin_characters()
-            if kwargs.get('make_vocab'):
-                self.make_vocab_file()
         #save to disk is after model tokenization
 class Processor():
     def push_to_hub(self,repo_name):
@@ -248,11 +267,20 @@ class Processor():
         print(f"Pushing processor to {repo_name} repo (not yet!)")
         # self.processor.push_to_hub(repo_name,token=pushtoken.token,
         #                             hub_private_repo=self.hub_private_repo)
+    def make_vocab_file(self):
+        self.vocab_file_name=f"vocab_{self.language['iso']}.json"
+        with open(self.vocab_file_name, 'w') as vocab_file:
+            json.dump(self.vocab_dict, vocab_file)
     def verify_json(self,json_file):
-        defaults=set(['<unk>','<pad>','|'])
+        """If verified, language specific file is copied to filename expected
+        by transformers
+        """
+        defaults=set(self.data_tokens.values()
+                            # ['<unk>','<pad>','|']
+                        )
         with open(json_file, 'r') as vocab_file:
             d=json.load(vocab_file)
-            defaults_present=defaults&set(d)
+            defaults_present=defaults&(set(d)|set(d[self.language['iso']]))
             if len(defaults_present) == len(defaults):
                 print(f"all defaults ({defaults}) found in json file.")
                 with open('vocab.json', 'w') as f:
@@ -260,47 +288,55 @@ class Processor():
             else:
                 print(f"json file missing default value(s) {defaults-set(d)}")
     def make_tokenizer(self):
+        """CTC tokenizers need to be built based on data, not just loaded
+        from_pretrained, like other tokenizers, so we manage
+        this difference here"""
         #this should just download or use from cache
-        print(f"Working with {self.processor_parent_fn.__name__} "
-                "Processor")
-        if self.processor_parent_fn.__name__ in [
-                                                    'Wav2Vec2BertProcessor'
-                                                            ]:
+        # print(f"Working with {self.processor_parent_fn.__name__} "
+        #         "Processor")
+        if self.tokenizer_fn.__name__ in ['Wav2Vec2CTCTokenizer']:
             """FutureWarning: Loading a tokenizer inside Wav2Vec2BertProcessor
             from a config that does not include a `tokenizer_class` attribute
             is deprecated and will be removed in v5. Please add
             `'tokenizer_class': 'Wav2Vec2CTCTokenizer'` attribute to either
             your `config.json` or `tokenizer_config.json` file to suppress
             this warning"""
+            self.make_vocab_file()
             print("Building tokenizer from (local) json file.")
-            json_file=f"vocab_{self.language['iso']}.json"
             try:
-                self.verify_json(json_file)
+                self.verify_json(self.vocab_file_name)
             except FileNotFoundError as e:
                 print(f"It looks like the json file didn't get made; "
                     "be sure to set make_vocab=True in data load ({e})")
                 exit()
             loc='./' #this builds from local json
             self.processor_remade=True
+            kwargs={'task':"transcribe",
+                    #if this crashes BERT, will need to separate out:
+                    'target_lang':self.language['iso'],
+                    'tokenizer_class':self.processor_parent_fn.__name__,
+                    **self.data_tokens}
         else:
-            print("Downloading tokenizer or using from cache. "
-                f"({self.tokenizer_fn_kwargs})")
+            print("Downloading tokenizer or using from cache. ")
             loc=self.fqbasemodelname
             self.processor_remade=False
+            kwargs={}
         self.tokenizer = self.tokenizer_fn.from_pretrained(loc,
                                             # self.fqmodelname_hf,
                                             # language=self.languagename,
                                             # task="transcribe",
                                             # cache_dir=self.cache_dir
-                                            **self.tokenizer_fn_kwargs
+                                            **kwargs
                                             )
         print(f"Loaded {self.modelname} tokenizer from {loc}")
-    def prepare_dataset(self,batch):
+    def prepare_dataset_features(self,batch):
         audio = batch["audio"]
         try:
+            # print("feature_extractor is",type(self.feature_extractor))
             batch["input_features"] = self.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
         except Exception as e:
             # print(f"no self.feature_extractor? ({e})")
+            # print("processor is",type(self.processor))
             batch["input_features"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
         batch["input_length"] = len(batch["input_features"])
         try:
@@ -308,6 +344,14 @@ class Processor():
         except Exception as e:
             # print(f"no self.tokenizer? ({e})")
             batch["labels"] = self.processor(text=batch[self.transcription_field]).input_ids
+        return batch
+    def prepare_dataset_values(self,batch):
+        audio = batch["audio"]
+        # batched output is "un-batched"
+        batch["input_values"] = self.processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_values[0]
+        batch["input_length"] = len(batch["input_values"])
+
+        batch["labels"] = self.processor(text=batch["sentence"]).input_ids
         return batch
     def do_prepare_dataset(self,dataset):
         if dataset.dataset_prepared:
@@ -317,19 +361,35 @@ class Processor():
         print(f"Processing Dataset {dataset.datasetprettyname}: "
             f"{dataset.dbd.column_names}, rows:{dataset.dbd.num_rows}")
         # print(dataset.dbd['train'][0]["audio"])
-        dataset.dbd = dataset.dbd.map(self.prepare_dataset,
+        if 'Wav2Vec2' in self.processor_parent_fn.__name__:
+            fn=self.prepare_dataset_values
+        else:
+            fn=self.prepare_dataset_features
+        dataset.dbd = dataset.dbd.map(fn,
             remove_columns=dataset.dbd.column_names["train"],
             # fn_kwargs={"cache_dir": "/media/kentr/hfcache/datasets"},
             num_proc=count_cpus())
         print(f"Going to save to disk as {dataset.datasetname_processed}: "
                 f"{dataset.dbd.column_names}, rows:{dataset.dbd.num_rows}")
         dataset.dbd.save_to_disk(dataset.fqdatasetname_processed)
-    # def from_pretrained(self,*args,**kwargs):
-    #     return self.processor_parent_fn.from_pretrained(*args,**kwargs)
     def make_tokenizer_and_processor(self):
         # This should only happen for CTC models, which require custom tokenizers
         fq=self.fqbasemodelname #This class is only called when absent online
-        self.feature_extractor = self.feature_extractor_fn.from_pretrained(fq)
+        if self.feature_extractor_fn.__name__ in ['Wav2Vec2FeatureExtractor']:
+            print("Making a Wav2Vec2FeatureExtractor")
+            kwargs={
+                'feature_size':1,
+                'sampling_rate':16000,
+                'padding_value':0.0,
+                'do_normalize':True,
+                'return_attention_mask':True
+            }
+        else:
+            kwargs={}
+        print("Making a FeatureExtractor")
+        self.feature_extractor = self.feature_extractor_fn.from_pretrained(fq,
+                                                                    **kwargs)
+        print(f"Loaded {self.modelname} feature extractor from {fq}")
         self.make_tokenizer()
         self.processor = self.processor_parent_fn(
                                 feature_extractor=self.feature_extractor,
@@ -341,7 +401,8 @@ class Processor():
             try:
                 self.processor=self.processor_parent_fn.from_pretrained(loc,
                                                                     **kwargs)
-                print(f"Loaded {self.modelname} processor from {loc}")
+                print(f"Loaded {self.modelname} processor from {loc} "
+                        "in one step")
                 #Keep this available for inference later:
                 self.processor.save_pretrained(self.fqmodelname_loc)
                 self.processor_remade=False
@@ -360,27 +421,27 @@ class Processor():
             else:
                 setattr(self,k,kwargs.pop(k))
         try:
-            # assert False
-            assert not kwargs.get('remake_processor')
+            assert not kwargs.get('remake_processor'), 'by request'
+            assert 'CTC' not in self.tokenizer_fn.__name__, 'by model type'
             self.one_step_processor(**kwargs) #succeeds or RuntimeError
-            # print(f"Looking for {self.fqbasemodelname} processor")
-            # for loc in [self.fqbasemodelname,self.fqmodelname_hf]:
-            #     if loc:
-            #         print(f"In {loc}, with {self.processor_fn} ")
-            #         self.processor=self.from_pretrained(loc,**kwargs)
-            #         print(f"Loaded {self.modelname} processor "
-            #                     f"({self.fqbasemodelname})")
-            #         self.processor_remade=False
-            #         break #stop the first time you get this far
-            #     else:
-            #         print("{loc} not found.")
+            print(f"Made {self.fqbasemodelname} processor in one step")
         except (RuntimeError,AssertionError) as e:
-            if isinstance(e,AssertionError):
-                e="by request"
             if 'expected str, bytes or os.PathLike object, not NoneType' in e.args:
                 e=f"Probably missing a vocab file: {','.join(e.args)}"
             print(f"Remaking {self.modelname} processor ({e})")
             self.make_tokenizer_and_processor()
+        print("Loaded Processor:",self.processor.__class__.__name__)
+        try:
+            print("Loaded Tokenizer:",self.tokenizer.__class__.__name__)
+        except:
+            print("Loaded Processor.Tokenizer:",
+                                self.processor.tokenizer.__class__.__name__)
+        try:
+            print("Loaded Feature Extractor:",
+                                    self.feature_extractor.__class__.__name__)
+        except:
+            print("Loaded Processor.FeatureExtractor:",
+                            self.processor.feature_extractor.__class__.__name__)
 class BaseModel():
     def get_peftOK_layer_names(self):
         layer_names = []
@@ -569,7 +630,8 @@ class Training():
             kwargs['per_device_train_batch_size']=16
         # increase by 2x per 2x decrease in batch size:
         #gradient_accumulation_steps:
-        gas=16//kwargs.get('per_device_train_batch_size')
+        pdtbs=kwargs.get('per_device_train_batch_size')#can be >16, e.g., 32
+        gas=max(16,pdtbs)//kwargs.get('per_device_train_batch_size')
         if not torch.cuda.is_available():
             kwargs['dataloader_pin_memory']=False
         return self.training_args_fn(
@@ -577,7 +639,7 @@ class Training():
                             output_dir=self.fqmodelname_loc,
                             # per_device_train_batch_size=pdtbs,
                             gradient_accumulation_steps=gas,
-                            warmup_steps=500,
+                            # warmup_steps=500,
                             group_by_length=True,
                             # Not for LoRA:
                             # gradient_checkpointing=True,
@@ -601,7 +663,8 @@ class Training():
 
         `use_cache = True` is incompatible with gradient checkpointing. Setting `use_cache = False`...
         """
-        self.trainer.train()
+        print(f"Saving trained model to {self.fqmodelname_loc}")
+        self.trainer.train(**self.train_kwargs)
     def push(self):
         self.trainer.push_to_hub(**self.push_kwargs())
         self.processor.push_to_hub(self.modelname, **self.push_kwargs())
@@ -646,12 +709,17 @@ class Training():
                                             'trainer_fn',
                                             'compute_metrics_fn_name',
                                             ]
-        for_training_arguments_kwargs=[#just what huggingface wants
+        for_trainer_kwargs=[#args to .train(), just what huggingface wants
+            'resume_from_checkpoint'
+        ]
+        for_training_arguments_kwargs=[#args to .train(args=), for huggingface
             'eval_strategy',
             'save_strategy',
             'per_device_train_batch_size',
+            'warmup_steps',
             'learning_rate',
             'predict_with_generate',
+            'gradient_checkpointing',
             'save_steps',
             'eval_steps',
             'logging_steps',
@@ -660,10 +728,14 @@ class Training():
             'lr_scheduler_type',
             'push_to_hub'
             ]
-        overlap=set(for_training_arguments_kwargs)&set(
+        overlap=(set(for_training_arguments_kwargs)&set(
                                             not_for_training_arguments_kwargs)
+                ) or (
+                    set(for_trainer_kwargs)&set(
+                                            not_for_training_arguments_kwargs)
+                ) or set(for_training_arguments_kwargs)&set(for_trainer_kwargs)
         remaining=set(kwargs)-set(for_training_arguments_kwargs)-set(
-                                            not_for_training_arguments_kwargs)
+                    not_for_training_arguments_kwargs)-set(for_trainer_kwargs)
         try:
             assert not overlap
         except AssertionError as e:
@@ -676,11 +748,16 @@ class Training():
             print("Found remaining training kwargs (add them?):",
                     remaining)
             exit()
+        self.train_kwargs={}
         for k in kwargs.copy(): #b/c pop
             if k in for_training_arguments_kwargs:
                 if debug:
                     print(k,kwargs[k],"(to training_arguments())")
                 setattr(self,k,kwargs[k]) #leave in kwargs
+            elif k in for_trainer_kwargs:
+                if debug:
+                    print(k,kwargs[k],"(to train())")
+                self.train_kwargs[k]=kwargs.pop(k)
             else:
                 if debug:
                     print(k,kwargs[k],"(just for this Training object)")
@@ -701,14 +778,23 @@ class Training():
                             #Can't tell if either of the following matters:
                             # tokenizer=self.processor.feature_extractor #not tokenizer
                             processing_class=self.processor.feature_extractor, #not tokenizer
-                            )
+                        )
 class TrainWrapper(object):
-    def get_data(self):
-        self.data=Data(**self.names.datakwargs())
-    def get_processor(self):
+    def get_data(self,data_tokens):
+        self.data=Data(data_tokens=data_tokens, **self.names.datakwargs())
+    def get_processor(self,data_tokens):
         """Do I need this Processor wrapper? will I ever need a second?
         Hardcoding this here right now seems best, at least for now"""
-        processor=Processor(**self.processor_fn_kwargs)
+        kwargs=self.names.processorkwargs()
+        if self.names.tokenizer_fn.__name__ in ['Wav2Vec2CTCTokenizer']:
+            tokenizer=self.names.tokenizer_fn.from_pretrained(
+                                                    self.names.fqbasemodelname)
+            vocab_dict=tokenizer.vocab
+            vocab_dict.update({self.names.language[
+                                            'iso']:self.data.make_vocab_dict()})
+            kwargs={**kwargs,'data_tokens':data_tokens,
+                            'vocab_dict':vocab_dict}
+        processor=Processor(**kwargs)
         if processor.processor_remade:
             #This is important because we want data preprocessed by the correct
             # processor. So we do that now if it wasn't already done, or if
@@ -738,11 +824,10 @@ class TrainWrapper(object):
             self.feature_extractor=processor.processor.feature_extractor
         #Processor object goes away at this point
         self.processor=processor.processor
-        for i in [self.processor,self.feature_extractor,self.tokenizer]:
-            print("Using",type(i))
     def get_base_model(self):
         kwargs=self.names.modelkwargs()
-        if self.names.processor_parent_fn.__name__ in ['Wav2Vec2BertProcessor']:
+        if self.names.processor_parent_fn.__name__ in ['Wav2Vec2ForCTC',
+                                                        'Wav2Vec2BertForCTC']:
             kwargs.update({
                         'vocab_size':len(self.processor.tokenizer),
                         'pad_token_id':self.processor.tokenizer.pad_token_id,
@@ -752,6 +837,17 @@ class TrainWrapper(object):
                         )
         #BaseModel object goes away at this point
         self.model=model.model
+        if self.names.processor_parent_fn.__name__ in [
+                                            'WhisperForConditionalGeneration']:
+                self.set_whisper_langs()
+    def set_whisper_langs(self):
+        # print("possible language codes: "
+        # f"{[i.strip('<>|') for i in self.model.generation_config.lang_to_id.keys()]}")
+        self.model.generation_config.language = self.names.sister_language['mcv_code']
+        self.model.generation_config.task = "transcribe"
+        self.model.generation_config.forced_decoder_ids = None
+        # self.model.generation_config.use_cache=True
+        self.model.generation_config.use_cache=self.names.use_cache_in_training
     def train(self):
         self.trainer.train()
         self.model.save_pretrained(self.names.fqmodelname_loc)
@@ -804,8 +900,13 @@ class TrainWrapper(object):
     def get_data_processor_model(self):
         if (getattr(self.names,'train',False) or
             getattr(self.names,'push_to_hub',False)):
-            self.get_data()
-            self.get_processor()
+            data_tokens={
+                        'unk_token':"<unk>",
+                        'pad_token':"<pad>",
+                        'word_delimiter_token':"|",
+                        }
+            self.get_data(data_tokens)
+            self.get_processor(data_tokens)
             self.get_base_model()
     def compute_metrics_whisper(self,pred):
         # print("Running train_whisper.compute_metrics")
@@ -837,7 +938,7 @@ class TrainWrapper(object):
                 f.write(f"correct:{label_str[n]}\n")
             f.write(f"{self.names.metric_name}: {error}\n")
         return {self.names.metric_name: error}
-    def compute_metrics_bert(self,pred):
+    def compute_metrics_ctc(self,pred):
         """This needs to be here because the processor may be loaded
         without the train class around it."""
         pred_logits = pred.predictions
@@ -853,7 +954,8 @@ class TrainWrapper(object):
 
         return {self.names.metric_name: error}
     def get_data_collator(self):
-        if self.names.processor_parent_fn.__name__ in ['Wav2Vec2BertProcessor']:
+        if self.names.processor_parent_fn.__name__ in ['Wav2Vec2BertProcessor',
+                                                        'Wav2Vec2Processor']:
             kwargs={'processor':self.processor,'padding':True}
         elif self.names.processor_parent_fn.__name__ in ['WhisperProcessor']:
             kwargs={'processor':self.processor,
@@ -864,6 +966,12 @@ class TrainWrapper(object):
                     f"{self.processor_parent_fn.__name__} processor!")
             exit()
         self.data_collator = self.names.data_collator_fn(**kwargs)
+    def freeze_all_but_adaptor_layers(self):
+        self.model.init_adapter_layers()
+        self.model.freeze_base_model()
+        adapter_weights = self.model._get_adapters()
+        for param in adapter_weights.values():
+            param.requires_grad = True
     def get_trainer(self):
         if (getattr(self.names,'train',False) or
             getattr(self.names,'push_to_hub',False)):
@@ -889,11 +997,17 @@ class TrainWrapper(object):
                 Demo(self.names)
         if getattr(self.names,'infer',False):
             self.infer()
-    def __init__(self):
-        pass
-        # self.trainer=train.Training(**training_kwargs)
-        # self.trainer.train()
-        # self.trainer.push()
+    def __init__(self,model_type,trainer_type,my_options):
+        my_options.sanitize() # wait until everyting is set to do this
+        self.get_names(model_type,trainer_type,my_options.args)
+        self.init_debug()
+        self.get_data_processor_model()
+        if getattr(self.names,'train_adaptor_only',False):
+            self.freeze_all_but_adaptor_layers()
+        self.get_trainer()
+        #in compute_metrics only:
+        self.metric = evaluate.load(self.names.metric_name)
+        self.do_stuff()
 class Demo(object):
     def transcribe_module(self,audio):
         return self.inferer(audio,show_standard=True)
@@ -952,7 +1066,7 @@ class Nomenclature():
         attrs=['tokenizer_fn',
             'feature_extractor_fn',
             'processor_parent_fn',
-            'tokenizer_fn_kwargs',
+            # 'tokenizer_fn_kwargs',
             'transcription_field',
             'metric',
             'metric_name',
@@ -978,14 +1092,15 @@ class Nomenclature():
                 'refresh_data',
                 'no_capital_letters',
                 'no_special_characters',
-                'make_vocab',
+                # 'make_vocab',
                 'fqdatasetname',
                 'datasetprettyname',
                 'data_splits',
                 'datasetname_processed',
                 'fqdatasetname_processed',
                 'proportion_to_train_with',
-                'hub_private_repo'
+                'hub_private_repo',
+                'processor_parent_fn',
             ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def modelkwargs(self):
@@ -1012,6 +1127,7 @@ class Nomenclature():
                 'fqmodelname_loc',
                 'datasetprettyname',
                 'fqdatasetname',
+                'resume_from_checkpoint',
                 'data_collator_fn',
                 'training_args_fn',
                 'trainer_fn',
@@ -1110,7 +1226,9 @@ class Nomenclature():
             self.dataset_configbits+=['nocaps']
         if kwargs.get('no_latin_characters'):
             self.dataset_configbits+=['nolatin']
-        self.dataset_configbits+=['to_train']+self.fqbasemodelname.split('/')
+        # self.dataset_configbits+=['to_train']+self.fqbasemodelname.split('/')
+        # The exact model type/size (above) isn't as relevant to processed data
+        # as the processor used (below)
         self.dataset_configbits+=[self.feature_extractor_fn.__name__,
                                     "processed"]
         self.dataset_configbits=list(map(self.noparens_dirs,
@@ -1147,9 +1265,10 @@ class Nomenclature():
             data_source=''
         else:
             data_source=self.dataset_code
-        self.modelname+=f'_{data_source}x{str(self.num_train_epochs)}'
+        self.modelname+=f'_{data_source}'#x{str(self.num_train_epochs)}'
+        cache=self.cache_dir_tuned if self.cache_dir_tuned else self.cache_dir
         self.fqmodelname_loc=os.path.join(
-                                        self.cache_dir_tuned,
+                                        cache,
                                         self.modelname)
         if kwargs.get('my_hf_login'):
             self.fqmodelname_hf='/'.join([kwargs.get('my_hf_login'),self.modelname])
