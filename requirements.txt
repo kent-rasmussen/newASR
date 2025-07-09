@@ -10,6 +10,6 @@ peft>=0.16.0
 Requests>=2.32.4
 samplerate>=0.2.1
 soundfile>=0.13.1
-torch>=2.6.0+cpu
+torch>=2.6.0
 torchaudio>=2.6.0
 transformers>=4.51.3
