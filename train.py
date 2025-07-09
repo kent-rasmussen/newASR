@@ -881,11 +881,10 @@ class TrainWrapper(object):
         print(f"going to {t if t else 'nothing?!?'}")
     def get_names(self,model_type,trainer_type,my_options_args):
         # print(f"use_cache_in_training: {my_options_args['use_cache_in_training']}")
-        self.names=Nomenclature(
-            **model_type,
-            **trainer_type,
-            **my_options_args #pull in default and user settings
-            )
+        kwargs={**model_type}
+        kwargs.update(trainer_type)
+        kwargs.update(**my_options_args) #pull in default and user settings
+        self.names=Nomenclature(**kwargs)
         # print(f"use_cache_in_training: {self.names.use_cache_in_training}")
         # exit()
         if not isinstance(self.names,Nomenclature):
