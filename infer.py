@@ -7,7 +7,8 @@ time_model_load=False
 time_inference=True
 # from transformers import TrainingArguments, Trainer, AutoModelForCTC
 # from transformers import Wav2Vec2CTCTokenizer, SeamlessM4TFeatureExtractor
-from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor
+# from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor,
+from transformers import AutoProcessor, AutoModel
 # from transformers import pipeline
 # from transformers import BitsAndBytesConfig
 # from dataclasses import dataclass
@@ -52,7 +53,7 @@ class Infer(object):
             with open(os.path.splitext(file)[0]+'.txt') as f:
                 print("Good Transcription:",f.read())
     def getprocessor(self):
-        proc_fn=Wav2Vec2BertProcessor
+        proc_fn=AutoProcessor
         for repo in self.repos:
             # print(f"Trying to load processor at {repo}.")
             try:
@@ -75,8 +76,19 @@ class Infer(object):
             # print(f"Processor: {type(self.processor)}")
         else:
             print("Processor not on local filesystem")
-    def get_model_fn(self):
-        return Wav2Vec2BertForCTC
+    def get_model_fn(self,repo):
+        self.kwargs={}
+        if 'mms' in repo:
+            from transformers import Wav2Vec2ForCTC
+            self.kwargs={'ignore_mismatched_sizes':True}
+            return Wav2Vec2ForCTC
+        if 'w2v' in repo:
+            from transformers import Wav2Vec2BertForCTC
+            return Wav2Vec2BertForCTC
+        if 'whisper' in repo:
+            from transformers import AutoModelForSpeechSeq2Seq
+            return AutoModelForSpeechSeq2Seq
+        return AutoModel
     @marktime(do=time_model_load)
     def __init__(self,*repos):
         # if torch.cuda.is_available()
@@ -87,16 +99,26 @@ class Infer(object):
         for repo in repos:
             # print(f"Trying to load model at {repo}.")
             try:
-                self.model = self.get_model_fn().from_pretrained(repo)
+                self.model = self.get_model_fn(repo).from_pretrained(repo,
+                            vocab_size=len(self.processor.tokenizer),
+                            pad_token_id=self.processor.tokenizer.pad_token_id,
+                            **self.kwargs
+                        )
                 print(f"Model at {repo} loaded.")
                 self.loaded=True
                 break
             except OSError: #i.e., not on local filesystem
                 print(f"Model not found at {repo}.")
                 pass
-        if not hasattr(self,'model') or not isinstance(self.model,
-                                                        self.get_model_fn()):
-            print("sorry, model(s) at "
+            except ValueError as e:
+                print("there may be a configuration problem with this model "
+                    f"({e})")
+        if not hasattr(self,'model'):
+            print(f"sorry, model(s) at "
+                    f"{str(repos).strip('(),')} not loaded; "
+                    "inference will fail.")
+        elif not isinstance(self.model, self.get_model_fn(repo)):
+            print(f"sorry, {type(self.model).__name__} model(s) at "
                     f"{str(repos).strip('(),')} not loaded; "
                     "inference will fail.")
 class InferDict(dict):
@@ -106,7 +128,7 @@ class InferDict(dict):
                         if 'checkpoint-' in i.name
                         if os.path.isdir(i)
                         ]
-            print("found checkpoints",checkpoints)
+            # print("found checkpoints",checkpoints)
             for c in checkpoints:
                 self.models.insert(self.models.index(m),c)
     def __init__(self,models,checkpoints=False):
