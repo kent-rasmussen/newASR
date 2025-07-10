@@ -26,10 +26,11 @@ if __name__ == '__main__':
                             'refresh_data':True, #any case w/new processor
                             # 'remake_processor':True, #any case if not found
                             # 'reload_model':True #large download!
-                            })
+                            'debug':True
+                        })
     """Pick one of the following four:"""
-    my_options.args.update(train.options.minimal_zulgo_test_options())
-    # my_options.args.update(train.options.maximal_zulgo_test_options())
+    # my_options.args.update(train.options.minimal_zulgo_test_options())
+    my_options.args.update(train.options.maximal_zulgo_test_options())
     # my_options.args.update({
     #                         'dataset_code':'mcv17',
     #                         'data_splits':['train','validation'],
@@ -45,22 +46,26 @@ if __name__ == '__main__':
     #                         # 'data_file_prefixes':['lexicon_13'],
     #                         })
     my_options.sanitize()
-    print(my_options.args)
+    # print(my_options.args)
     trainer_type={
                 'gradient_checkpointing':True,
                 # 'learning_rate':1e-5,
                 'learning_rate':1e-3,
+                'load_best_model_at_end':True,
+                'per_device_train_batch_size':8,
                 # 'per_device_train_batch_size':16,
                 # 'per_device_train_batch_size':32,
-                'per_device_train_batch_size':64,
-                # 'save_steps':20,
+                # 'per_device_train_batch_size':128,
                 # load_best_model_at_end requires the save and eval strategy to match
-                'eval_strategy': 'epoch',
-                'save_strategy': 'epoch',
-                # 'eval_steps':5,
+                # 'eval_strategy': 'epoch',
+                # 'save_strategy': 'epoch',
+                'eval_strategy': 'steps',
+                'save_strategy': 'steps',
+                'save_steps':2,
+                'eval_steps':2,
                 # 'logging_steps':20,
                 'save_total_limit':3,
-                'num_train_epochs':12,
+                'num_train_epochs':3,
                 # 'attention-dropout':0.0,
                 # 'hidden-dropout':0.0,
                 # 'feat-proj-dropout':0.0,
@@ -75,7 +80,6 @@ if __name__ == '__main__':
             }
     for my_options.args['metric_name'] in ['cer','wer']:
         train.TrainWrapper(model_type,trainer_type,my_options)
-        del trainer_type['resume_from_checkpoint']
     exit()
     for my_options.args['data_file_prefixes'] in [
                                         ['lexicon_640','examples_300'],
