@@ -664,7 +664,14 @@ class Training():
         `use_cache = True` is incompatible with gradient checkpointing. Setting `use_cache = False`...
         """
         print(f"Saving trained model to {self.fqmodelname_loc}")
-        self.trainer.train(**self.train_kwargs)
+        try:
+            self.trainer.train(**self.train_kwargs)
+        except ValueError as e:
+            if 'No valid checkpoint found in output directory' in e.args:
+                del self.train_kwargs['resume_from_checkpoint']
+                self.trainer.train(**self.train_kwargs)
+        except Exception as e:
+            print(f"unknown exception: ({e})")
     def push(self):
         self.trainer.push_to_hub(**self.push_kwargs())
         self.processor.push_to_hub(self.modelname, **self.push_kwargs())
