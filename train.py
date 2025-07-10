@@ -978,6 +978,7 @@ class TrainWrapper(object):
         adapter_weights = self.model._get_adapters()
         for param in adapter_weights.values():
             param.requires_grad = True
+        print("Froze all but adaptor layers")
     def get_trainer(self):
         if (getattr(self.names,'train',False) or
             getattr(self.names,'push_to_hub',False)):
