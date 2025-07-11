@@ -1359,7 +1359,7 @@ class Nomenclature():
         self.dataset_dir=os.path.join(self.cache_dir,'datasets')
         self.hub_model_dir=os.path.join(self.cache_dir,'hub')
     def sanitize(self):
-        if 'CTC' in tokenizer_fn.__name__:
+        if 'CTC' in self.tokenizer_fn.__name__:
             self.refresh_data=True
     def __init__(self,**kwargs):
         self.setlang(**kwargs)
@@ -1429,7 +1429,7 @@ if __name__ == '__main__':
                             'train':True,
                             # 'infer':True,
                             # 'infer_checkpoints':True,
-                            'refresh_data':True, #any case w/new processor
+                            # 'refresh_data':True, #any case w/new processor or CTC
                             # 'remake_processor':True, #any case if not found
                             # 'reload_model':True #large download!
                             'lora':True,
