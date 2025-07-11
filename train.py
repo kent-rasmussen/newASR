@@ -503,6 +503,8 @@ class BaseModel():
         self.model.print_trainable_parameters()
         self.did_lora=True
     def use_quantization(self):
+        # The `load_in_4bit` and `load_in_8bit` arguments are deprecated and will be removed in the future versions. Please, pass a `BitsAndBytesConfig` object in `quantization_config` argument instead.
+        # Reloading Whisper Large V3 Cer Hau Hausa_Mcv11X9 (Quantized LoRA) from source (Using `bitsandbytes` 8-bit quantization requires the latest version of bitsandbytes: `pip install -U bitsandbytes`)
         from peft import prepare_model_for_int8_training
         model = prepare_model_for_int8_training(model,
                                         output_embedding_layer_name="proj_out")
@@ -511,22 +513,18 @@ class BaseModel():
 
         model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
     def quant_config(self):
-        if getattr(self.names,'quant',False):
-            import intel_extension_for_pytorch as ipex
-            quantization_config=BitsAndBytesConfig(
-                # ( load_in_8bit = False
-                # llm_int8_threshold = 6.0
-                # llm_int8_skip_modules = None
-                # llm_int8_enable_fp32_cpu_offload = False )
-            )
-            # quantization_config=BitsAndBytesConfig(
-            #         # load_in_4bit=True,
-            #         load_in_8bit = True,
-            #         bnb_4bit_quant_type="nf4",         # NormalFloat4 quantization
-            #         # bnb_4bit_use_double_quant=True,    # Enable double quantization
-            #         # bnb_4bit_compute_dtype=torch.bfloat16 # Compute dtype for faster training
-            #         )
-            self.quantization_config=quantization_config
+        # import intel_extension_for_pytorch as ipex
+        from transformers import BitsAndBytesConfig
+        """A rule of thumb is:
+        use double quant if you have problems with memory,
+        use NF4 for higher precision, and
+        use a 16-bit dtype for faster finetuning. """
+        return BitsAndBytesConfig(
+                                   load_in_4bit=True,
+                                   bnb_4bit_quant_type="nf4",
+                                   bnb_4bit_use_double_quant=True,
+                                   bnb_4bit_compute_dtype=torch.bfloat16
+                                )
     def donothing(self):
         pass
     def check_for_input_embeddings_method(self):
@@ -618,7 +616,8 @@ class BaseModel():
                     print(k,kwargs[k],"(just for this BaseModel object)")
                 setattr(self,k,kwargs.pop(k))
         if getattr(self,'quant',False): #for quant model loading
-            kwargs={**kwargs,**options.quantization()}
+            print("Running quantization")
+            kwargs={**kwargs,'quantization_config':self.quant_config()}
         self.get_model(**kwargs)
         if getattr(self,'quant',False): #for quant post-processing
             self.use_quantization()
@@ -627,7 +626,7 @@ class BaseModel():
                 log.error("Quantization didn't work!")
                 exit()
         else:
-            print("Not using LoRA")
+            print("Not using quantization")
         if getattr(self,'lora',False):
             self.use_lora()
             print('LoRA:',self.did_lora)
@@ -657,8 +656,6 @@ class Training():
         #gradient_accumulation_steps:
         pdtbs=kwargs.get('per_device_train_batch_size')#can be >16, e.g., 32
         gas=max(16,pdtbs)//kwargs.get('per_device_train_batch_size')
-        if not torch.cuda.is_available():
-            kwargs['dataloader_pin_memory']=False
         if self.lora:
             lora_kwargs={
                 # required as the PeftModel forward doesn't have the signature of the wrapped model's forward
@@ -771,6 +768,7 @@ class Training():
             'save_total_limit',
             'num_train_epochs',
             'lr_scheduler_type',
+            'dataloader_pin_memory',
             'push_to_hub',
             'hub_private_repo',
             ]
@@ -1043,18 +1041,20 @@ class TrainWrapper(object):
                 Demo(self.names)
         if getattr(self.names,'infer',False):
             self.infer()
-    def __init__(self,model_type,trainer_type,my_options,do_later=False):
-        my_options.sanitize() # wait until everyting is set to do this
-        self.get_names(model_type,trainer_type,my_options.args)
-        self.init_debug()
+    def load_and_do_stuff(self):
         self.get_data_processor_model()
         if getattr(self.names,'train_adaptor_only',False):
             self.freeze_all_but_adaptor_layers()
         self.get_trainer()
         #in compute_metrics only:
         self.metric = evaluate.load(self.names.metric_name)
+        self.do_stuff()
+    def __init__(self,model_type,trainer_type,my_options,do_later=False):
+        my_options.sanitize() # wait until everyting is set to do this
+        self.get_names(model_type,trainer_type,my_options.args)
+        self.init_debug()
         if not do_later:
-            self.do_stuff()
+            self.load_and_do_stuff()
 class Demo(object):
     def transcribe_module(self,audio):
         return self.inferer(audio,show_standard=True)
@@ -1187,6 +1187,7 @@ class Nomenclature():
                 'trainer_fn',
                 'predict_with_generate',
                 'per_device_train_batch_size',
+                'dataloader_pin_memory',
                 'eval_strategy',
                 'save_strategy',
                 'compute_metrics',
@@ -1293,13 +1294,13 @@ class Nomenclature():
         """This function names the model to be created through tuning"""
         prettybits=[]
         tuned_bits=[self.basemodelname]
-        if kwargs.get('quant'):
+        if getattr(self,'quant',False):
             tuned_bits+=['quant']
             prettybits+=['Quantized']
-        if kwargs.get('lora'):
+        if getattr(self,'lora',False):
             tuned_bits+=['lora']
             prettybits+=['LoRA']
-        tuned_bits+=[self.metric_name]
+        # tuned_bits+=[self.metric_name] #This shouldn't be relevant
         tuned_bits+=[self.language['iso'],self.language['name']]
         if kwargs.get('increment'):
             tuned_bits+=[str(self.increment)] #in case this is int
@@ -1322,8 +1323,8 @@ class Nomenclature():
         self.fqmodelname_loc=os.path.join(
                                         cache,
                                         self.modelname)
-        if kwargs.get('my_hf_login'):
-            self.fqmodelname_hf='/'.join([kwargs.get('my_hf_login'),self.modelname])
+        if getattr(self,'my_hf_login',False):
+            self.fqmodelname_hf='/'.join([getattr(self.my_hf_login),self.modelname])
         else:
             self.fqmodelname_hf=False
         repo_errors=(AttributeError, OSError,
@@ -1361,6 +1362,11 @@ class Nomenclature():
     def sanitize(self):
         if 'CTC' in self.tokenizer_fn.__name__:
             self.refresh_data=True
+        if not torch.cuda.is_available():
+            self.dataloader_pin_memory=False
+            if self.quant:
+                print("Asked to quantize model, but no GPU present, so skipping.")
+                self.quant=False
     def __init__(self,**kwargs):
         self.setlang(**kwargs)
         for k in kwargs:
@@ -1490,7 +1496,8 @@ if __name__ == '__main__':
             }
     my_options.args['metric_name']='wer'
     # for my_options.args['metric_name'] in ['cer','wer']:
-    train.TrainWrapper(model_type,trainer_type,my_options)
+    tw=train.TrainWrapper(model_type,trainer_type,my_options)
+    tw.load_and_do_stuff()
     exit()
     for my_options.args['data_file_prefixes'] in [
                                         ['lexicon_640','examples_300'],
