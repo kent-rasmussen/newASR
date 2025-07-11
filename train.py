@@ -678,7 +678,7 @@ class Training():
                             metric_for_best_model=self.metric_name,
                             greater_is_better=False,
                             # remove_unused_columns=False,
-                            hub_private_repo=True,
+                            hub_private_repo=self.hub_private_repo,
                             **kwargs)
     def train(self):
         """
@@ -709,7 +709,6 @@ class Training():
         kwargs= {
                     "dataset_tags": self.fqdatasetname,
                     # a 'pretty' name for the training dataset
-                    "hub_private_repo": self.hub_private_repo,
                     "dataset": self.datasetprettyname,
                     "dataset_args": f"config: {self.language['mcv_code']}, split: test",
                     "language": self.language['iso'],
