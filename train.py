@@ -1324,7 +1324,7 @@ class Nomenclature():
                                         cache,
                                         self.modelname)
         if getattr(self,'my_hf_login',False):
-            self.fqmodelname_hf='/'.join([getattr(self.my_hf_login),self.modelname])
+            self.fqmodelname_hf='/'.join([self.my_hf_login,self.modelname])
         else:
             self.fqmodelname_hf=False
         repo_errors=(AttributeError, OSError,
