@@ -22,6 +22,11 @@ def maximal_zulgo_test_options():
         'language_iso':'gnd',
         'data_file_prefixes':['lexicon_640','examples_4589']
     }
+def quantization():
+    return {
+        'load_in_8bit':True,
+        'device_map':"auto"
+    }
 class Parser(object):
     def do_arg_set(self,arg_set):
         self.default_list=getattr(self,arg_set)
@@ -215,7 +220,7 @@ class Parser(object):
         if hasattr(self,'ap'):
             self.ap.finalize()
             self.args = self.ap.args
-        self.sanitize()
+        # self.sanitize()
     def defaults_only(self):
         """This is used when we want sane defaults, but don't have sys.argv
         (e.g., colab)"""

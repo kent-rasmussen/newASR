@@ -6,7 +6,8 @@ from datasets import load_dataset, load_from_disk
 from datasets import DatasetDict, concatenate_datasets, Audio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
-from peft import get_peft_model, PeftModel, LoraModel, LoraConfig #,TaskType
+from peft import get_peft_model, LoraConfig #,TaskType
+# from peft import PeftModel #for inference
 import torch
 import evaluate
 import re
@@ -502,15 +503,13 @@ class BaseModel():
         self.model.print_trainable_parameters()
         self.did_lora=True
     def use_quantization(self):
-        from transformers import pipeline
+        from peft import prepare_model_for_int8_training
+        model = prepare_model_for_int8_training(model,
+                                        output_embedding_layer_name="proj_out")
+        def make_inputs_require_grad(module, input, output):
+            output.requires_grad_(True)
 
-        # Load pipeline with quantization
-        pipe = pipeline("text-classification", model="bert-base-uncased", device=0)
-
-        # Apply quantization
-        pipe.model = torch.quantization.quantize_dynamic(
-            pipe.model, {torch.nn.Linear}, dtype=torch.qint8
-        )
+        model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
     def quant_config(self):
         if getattr(self.names,'quant',False):
             import intel_extension_for_pytorch as ipex
@@ -549,7 +548,7 @@ class BaseModel():
             self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
                 **{**kwargs,'force_download':self.reload_model})
         self.did_lora=False
-        if kwargs.get('quantization_config'):
+        if 'load_in_8bit' in kwargs:
             self.did_quant=True
     # def model_fns(self):
     #     self.metric = evaluate.load(self.metric_name, cache_dir=self.cache_dir)
@@ -618,7 +617,17 @@ class BaseModel():
                 if debug:
                     print(k,kwargs[k],"(just for this BaseModel object)")
                 setattr(self,k,kwargs.pop(k))
+        if getattr(self,'quant',False): #for quant model loading
+            kwargs={**kwargs,**options.quantization()}
         self.get_model(**kwargs)
+        if getattr(self,'quant',False): #for quant post-processing
+            self.use_quantization()
+            print('Quantization:',self.did_quant)
+            if not self.did_quant:
+                log.error("Quantization didn't work!")
+                exit()
+        else:
+            print("Not using LoRA")
         if getattr(self,'lora',False):
             self.use_lora()
             print('LoRA:',self.did_lora)
@@ -1347,6 +1356,9 @@ class Nomenclature():
             exit()
         self.dataset_dir=os.path.join(self.cache_dir,'datasets')
         self.hub_model_dir=os.path.join(self.cache_dir,'hub')
+    def sanitize(self):
+        if 'CTC' in tokenizer_fn.__name__:
+            self.refresh_data=True
     def __init__(self,**kwargs):
         self.setlang(**kwargs)
         for k in kwargs:
@@ -1355,6 +1367,7 @@ class Nomenclature():
             setattr(self,k,kwargs[k])
         # if kwargs.get('fqmodelname'):
         #     self.modelname=self.fqmodelname.split('/')[-1] #just the name
+        self.sanitize()
         if kwargs.get('fqbasemodelname'):
             self.basemodelname=self.fqbasemodelname.split('/')[-1]
         else:
@@ -1386,47 +1399,98 @@ def count_cpus():
     return multiprocessing.cpu_count()
 
 if __name__ == '__main__':
-    #for testing with Bert; it won't work without modules in train_bert
-    # this is normally in train wrapper:
-    model_type={
-                # 'getmodel_fn':AutoModelForCTC, #for basemodels
-                'getmodel_fn':Wav2Vec2BertForCTC, #for tuned models
-                'tokenizer_fn':Wav2Vec2CTCTokenizer,
-                'feature_extractor_fn':SeamlessM4TFeatureExtractor,
-                'processor_fn':Wav2Vec2BertProcessor,
-                }
+    import sys,os
+    import train #local
+    if not train.in_venv():
+        print("this script is mean to run in a virtual environment, but isn't.")
+    my_options=train.options.Parser('train','infer')
+    # my_options=make_options()
+    """‘refresh_data’ happens anyway if processor is remade"""
+    """‘remake_processor’ happens anyway if not found"""
+    """‘reload_model’ causes a large download!"""
+
+    """Pick one:"""
+    from model_configs import whisper
+    model_type=whisper()
+    model_type.update({'fqbasemodelname':
+                    "kent-rasmussen/whisper-large-v3-cer-hau-Hausa_mcv11x9"})
+
+    # from model_configs import mms
+    # model_type=mms()
+    # model_type.update({'fqbasemodelname':"facebook/mms-1b-all"})
+
+    print(f"working with model {model_type['fqbasemodelname']}")
+    """This is general settings"""
+    my_options.args.update({
+                            'cache_dir':'/media/kentr/hfcache',
+                            'data_file_location':'training_data',
+                            'train':True,
+                            # 'infer':True,
+                            # 'infer_checkpoints':True,
+                            'refresh_data':True, #any case w/new processor
+                            # 'remake_processor':True, #any case if not found
+                            # 'reload_model':True #large download!
+                            'lora':True,
+                            # 'quant':True, #not for cpu
+                            'debug':True
+                        })
+    """Pick one of the following four:"""
+    # my_options.args.update(train.options.minimal_zulgo_test_options())
+    my_options.args.update(train.options.maximal_zulgo_test_options())
+    # my_options.args.update({
+    #                         'dataset_code':'mcv17',
+    #                         'data_splits':['train','validation'],
+    #                         'language_iso':'hau',
+    #                         'sister_language_iso': 'hau',
+    #                         # 'max_data_rows':20,
+    #                         })
+    # my_options.args.update({
+    #                         'dataset_code':'csv',
+    #                         'language_iso':'gnd',
+    #                         'data_file_prefixes':['lexicon_640'],
+    #                         # 'data_file_prefixes':['examples_4589'],
+    #                         # 'data_file_prefixes':['lexicon_13'],
+    #                         })
+    my_options.sanitize()
+    # print(my_options.args)
     trainer_type={
-                'data_collator_fn':DataCollatorCTCWithPadding,
-                'training_args_fn':TrainingArguments,
-                'trainer_fn':Trainer,
-                'learning_rate':5e-5,
-                'per_device_train_batch_size':16,
-                'save_steps':5,
+                # **train.options.quantization(),
+                'gradient_checkpointing':True,
+                # 'learning_rate':1e-5,
+                'learning_rate':1e-3,
+                'load_best_model_at_end':True,
+                # 'per_device_train_batch_size':8,
+                # 'per_device_train_batch_size':16,
+                # 'per_device_train_batch_size':32,
+                'per_device_train_batch_size':64,
+                # 'per_device_train_batch_size':128,
                 # load_best_model_at_end requires the save and eval strategy to match
-                'eval_strategy': 'epoch',
-                'save_strategy': 'epoch',
-                # 'eval_strategy':"steps",
-                # 'eval_steps':5,
-                'logging_steps':5,
-                'save_total_limit':2,
+                # 'eval_strategy': 'epoch',
+                # 'save_strategy': 'epoch',
+                'eval_strategy': 'steps',
+                'save_strategy': 'steps',
+                'save_steps':5,
+                'eval_steps':5,
+                # 'logging_steps':20,
+                'save_total_limit':3,
                 'num_train_epochs':3,
-                'compute_metrics':compute_metrics_bert,
-                }
-    options=Options()
-    options.args.update({
-            'language_iso':'gnd',
-            'cache_dir':'.',
-            'data_file_prefixes':['lexicon_41','examples_300'],
-            'train':True
-        })
-    names=Nomenclature(
-        fqbasemodelname="facebook/w2v-bert-2.0",
-        **model_type,
-        **trainer_type,
-        # **options,
-        **options.args #pull in default and user settings
-        )
-    # options={'debug_names':True}
-    if options.args.get('debug'):
-        for attr in dir(names):
-            print(attr,getattr(names,attr))
+                # 'attention-dropout':0.0,
+                # 'hidden-dropout':0.0,
+                # 'feat-proj-dropout':0.0,
+                # 'mask-time-prob':0.0,
+                # 'layerdrop':0.0,
+                # 'ctc-loss-reduction':'mean'
+                'resume_from_checkpoint':True,
+                # above if last checkpoint is saved correctly, below if not
+                # 'resume_from_checkpoint':os.path.join(
+                #                 my_options.args['cache_dir'],
+                #                 "mms-1b-all-cer-gnd-Zulgo_640x6/checkpoint-18")
+            }
+    my_options.args['metric_name']='wer'
+    # for my_options.args['metric_name'] in ['cer','wer']:
+    train.TrainWrapper(model_type,trainer_type,my_options)
+    exit()
+    for my_options.args['data_file_prefixes'] in [
+                                        ['lexicon_640','examples_300'],
+                                    ]:
+        TrainWrapper(model_type,trainer_type,my_options.args)
