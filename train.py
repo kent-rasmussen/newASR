@@ -515,9 +515,6 @@ class BaseModel():
                         # use_gradient_checkpointing=False,
                         gradient_checkpointing_kwargs={'use_reentrant':False})
         def make_inputs_require_grad(module, input, output):
-            print(f"module: {type(module)}")
-            print(f"input: {type(input)}")
-            print(f"output: {type(output)}")
             output.requires_grad_(True)
 
         self.model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
