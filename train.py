@@ -505,7 +505,7 @@ class BaseModel():
     def use_quantization(self):
         # The `load_in_4bit` and `load_in_8bit` arguments are deprecated and will be removed in the future versions. Please, pass a `BitsAndBytesConfig` object in `quantization_config` argument instead.
         # Reloading Whisper Large V3 Cer Hau Hausa_Mcv11X9 (Quantized LoRA) from source (Using `bitsandbytes` 8-bit quantization requires the latest version of bitsandbytes: `pip install -U bitsandbytes`)
-        from peft import prepare_model_for_int8_training
+        from peft import prepare_model_for_kbit_training
         model = prepare_model_for_kbit_training(model,
                                         output_embedding_layer_name="proj_out")
         def make_inputs_require_grad(module, input, output):
