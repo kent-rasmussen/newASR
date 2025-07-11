@@ -510,7 +510,9 @@ class BaseModel():
         —use_gradient_checkpointing (bool, optional, defaults to True) — If True, use gradient checkpointing to save memory at the expense of slower backward pass.
         —gradient_checkpointing_kwargs (dict, optional, defaults to None) — Keyword arguments to pass to the gradient checkpointing function, please refer to the documentation of torch.utils.checkpoint.checkpoint for more details about the arguments that you can pass to that method. Note this is only available in the latest transformers versions (> 4.34.1).
         """
-        self.model = prepare_model_for_kbit_training(self.model)
+        self.model = prepare_model_for_kbit_training(self.model,
+                                            # use_gradient_checkpointing=False,
+                                            gradient_checkpointing_kwargs=False)
         def make_inputs_require_grad(module, input, output):
             print(f"module: {type(module)}")
             print(f"input: {type(input)}")
