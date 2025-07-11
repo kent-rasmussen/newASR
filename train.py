@@ -700,6 +700,7 @@ class Training():
                 print(f"Other ValueError: ({e.args}; {e.add_note()})")
         except Exception as e:
             print(f"unknown exception: ({e})")
+            raise
     def push(self):
         self.trainer.push_to_hub(**self.push_kwargs())
         self.processor.push_to_hub(self.modelname, **self.push_kwargs())
