@@ -512,7 +512,10 @@ class BaseModel():
         """
         self.model = prepare_model_for_kbit_training(self.model)
         def make_inputs_require_grad(module, input, output):
-            input.requires_grad_(True)
+            print(f"module: {type(module)}")
+            print(f"input: {type(input)}")
+            print(f"output: {type(output)}")
+            output.requires_grad_(True)
 
         self.model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
     def quant_config(self):
