@@ -548,8 +548,8 @@ class BaseModel():
             print(f"Reloading {self.basemodelprettyname} from source ({e})")
             self.model = self.getmodel_fn.from_pretrained(self.fqbasemodelname,
                 **{**kwargs,'force_download':self.reload_model})
-        self.did_lora=False
-        if 'load_in_8bit' in kwargs:
+        self.did_lora=self.did_quant=False
+        if 'quantization_config' in kwargs:
             self.did_quant=True
     # def model_fns(self):
     #     self.metric = evaluate.load(self.metric_name, cache_dir=self.cache_dir)
