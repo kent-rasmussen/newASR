@@ -752,7 +752,8 @@ class Training():
                                             'trainer_fn',
                                             'compute_metrics_fn_name',
                                             'lora',
-                                            ]
+                                            'language',
+                                        ]
         for_trainer_kwargs=[#args to .train(), just what huggingface wants
             'resume_from_checkpoint'
         ]
@@ -1198,6 +1199,7 @@ class Nomenclature():
                 'save_total_limit',
                 'num_train_epochs',
                 'lora',
+                'language',
                 'push_to_hub'
             ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
