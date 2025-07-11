@@ -678,7 +678,6 @@ class Training():
                             metric_for_best_model=self.metric_name,
                             greater_is_better=False,
                             # remove_unused_columns=False,
-                            hub_private_repo=self.hub_private_repo,
                             **kwargs)
     def train(self):
         """
@@ -762,7 +761,8 @@ class Training():
             'save_total_limit',
             'num_train_epochs',
             'lr_scheduler_type',
-            'push_to_hub'
+            'push_to_hub',
+            'hub_private_repo',
             ]
         overlap=(set(for_training_arguments_kwargs)&set(
                                             not_for_training_arguments_kwargs)
