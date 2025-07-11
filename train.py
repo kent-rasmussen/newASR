@@ -6,7 +6,7 @@ from datasets import load_dataset, load_from_disk
 from datasets import DatasetDict, concatenate_datasets, Audio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
-# from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, PeftModel, LoraModel, LoraConfig #,TaskType
 import torch
 import evaluate
 import re
@@ -72,6 +72,8 @@ class Data:
                             data_files=self.data_files
                             ).cast_column("audio", Audio(sampling_rate=16000)
                             ).select_columns(self.columns)
+        #This indicates data with suprasegmental features
+        d = d.filter(lambda x: '+' not in x, input_columns=["sentence"])
         print(f"unsplit data loaded. Row 1 of {d['train'].num_rows}: "
                 f"{d['train'][0]}")
         #for debugging:
@@ -268,13 +270,16 @@ class Processor():
         # self.processor.push_to_hub(repo_name,token=pushtoken.token,
         #                             hub_private_repo=self.hub_private_repo)
     def make_vocab_file(self):
-        self.vocab_file_name=f"vocab_{self.language['iso']}.json"
+        file_name=f"vocab_{self.language['iso']}.json"
+        self.vocab_file_name=os.path.join(self.data_file_location,file_name)
         with open(self.vocab_file_name, 'w') as vocab_file:
             json.dump(self.vocab_dict, vocab_file)
-    def verify_json(self,json_file):
+    def verify_json(self,json_file=None):
         """If verified, language specific file is copied to filename expected
         by transformers
         """
+        if not json_file:
+            json_file=self.vocab_file_name
         defaults=set(self.data_tokens.values()
                             # ['<unk>','<pad>','|']
                         )
@@ -283,7 +288,7 @@ class Processor():
             defaults_present=defaults&(set(d)|set(d[self.language['iso']]))
             if len(defaults_present) == len(defaults):
                 print(f"all defaults ({defaults}) found in json file.")
-                with open('vocab.json', 'w') as f:
+                with open('vocab.json', 'w') as f: #Must be in Working Directory!
                     json.dump(d,f)
             else:
                 print(f"json file missing default value(s) {defaults-set(d)}")
@@ -304,7 +309,7 @@ class Processor():
             self.make_vocab_file()
             print("Building tokenizer from (local) json file.")
             try:
-                self.verify_json(self.vocab_file_name)
+                self.verify_json()
             except FileNotFoundError as e:
                 print(f"It looks like the json file didn't get made; "
                     "be sure to set make_vocab=True in data load ({e})")
@@ -328,6 +333,7 @@ class Processor():
                                             # cache_dir=self.cache_dir
                                             **kwargs
                                             )
+        os.remove('vocab.json')
         print(f"Loaded {self.modelname} tokenizer from {loc}")
     def prepare_dataset_features(self,batch):
         audio = batch["audio"]
@@ -466,29 +472,35 @@ class BaseModel():
     #     print('peftOK_layer_names:',list(set(layer_names)))
     #     print('peftOK_layer_types:',list(set(layer_types)))
     #     return list(set(layer_names))
-    # def use_lora(self):
-    #     # /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/peft/tuners/tuners_utils.py:550: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['model.decoder.embed_tokens'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
-    #     self.check_for_input_embeddings_method()
-    #     lora_config = LoraConfig(
-    #                                 #per https://discuss.huggingface.co/t/unexpected-keywork-argument/91356:
-    #                                 # task_type=TaskType.SEQ_2_SEQ_LM,
-    #                                 task_type=TaskType('SEQ_2_SEQ_LM'),#'automatic-speech-recognition',
-    #                                 inference_mode=False,
-    #                                 r=8,
-    #                                 lora_alpha=32,
-    #                                 lora_dropout=0.1,
-    #                                 target_modules=self.get_peftOK_layer_names(),
-    #                                 # save_embedding_layers=True #necessary when changing vocab
-    #                             )
-    #     # model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
-    #     # model = get_peft_model(model, peft_config)
-    #     self.model = get_peft_model(self.model, lora_config)
-    #     # This should be used to load a file saved earlier:
-    #     # self.model = PeftModel.from_pretrained(model=self.model,
-    #     #                                         model_id=<location on file system>
-    #     #                         is_trainable=True)
-    #     self.model.print_trainable_parameters()
-    #     self.did_lora=True
+    def use_lora(self):
+        # /home/kentr/bin/raspy/newASR/env/lib/python3.11/site-packages/peft/tuners/tuners_utils.py:550: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['model.decoder.embed_tokens'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
+        self.check_for_input_embeddings_method()
+        # lora_config = LoraConfig(
+        #                             #per https://discuss.huggingface.co/t/unexpected-keywork-argument/91356:
+        #                             # task_type=TaskType.SEQ_2_SEQ_LM,
+        #                             task_type=TaskType('SEQ_2_SEQ_LM'),#'automatic-speech-recognition',
+        #                             inference_mode=False,
+        #                             r=8,
+        #                             lora_alpha=32,
+        #                             lora_dropout=0.1,
+        #                             # target_modules=self.get_peftOK_layer_names(),
+        #                             target_modules=["q_proj", "v_proj"],
+        #                             # save_embedding_layers=True #necessary when changing vocab
+        #                         )
+        lora_config = LoraConfig(r=32, lora_alpha=64,
+                                target_modules=["q_proj", "v_proj"],
+                                lora_dropout=0.05,
+                                bias="none"
+                            )
+        # model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
+        # model = get_peft_model(model, peft_config)
+        self.model = get_peft_model(self.model, lora_config)
+        # This should be used to load a file saved earlier:
+        # self.model = PeftModel.from_pretrained(model=self.model,
+        #                                         model_id=<location on file system>
+        #                         is_trainable=True)
+        self.model.print_trainable_parameters()
+        self.did_lora=True
     def use_quantization(self):
         from transformers import pipeline
 
@@ -564,6 +576,8 @@ class BaseModel():
                         'layerdrop',
                         'ctc_loss_reduction',
                         'pad_token_id',
+                        'load_in_8bit',
+                        'device_map',
                         # 'add_adapter',
                         ]
         nonmodelkwargs=['getmodel_fn',
@@ -611,6 +625,8 @@ class BaseModel():
             if not self.did_lora:
                 log.error("LoRA didn't work!")
                 exit()
+        else:
+            print("Not using LoRA")
         if isinstance(self.model, torch.nn.Module):
             print(f"Model {self.basemodelprettyname} ({self.fqbasemodelname}) "
                 "loaded for training on "
@@ -634,8 +650,18 @@ class Training():
         gas=max(16,pdtbs)//kwargs.get('per_device_train_batch_size')
         if not torch.cuda.is_available():
             kwargs['dataloader_pin_memory']=False
+        if self.lora:
+            lora_kwargs={
+                # required as the PeftModel forward doesn't have the signature of the wrapped model's forward
+                'remove_unused_columns':False,
+                'label_names':["labels"],  # same reason as above
+                }
+        else:
+            lora_kwargs={}
+        # What to do with remove_unused_columns?
         return self.training_args_fn(
-                                # change to a repo name of your choice:
+                            **lora_kwargs,
+                            # change to a repo name of your choice:
                             output_dir=self.fqmodelname_loc,
                             # per_device_train_batch_size=pdtbs,
                             gradient_accumulation_steps=gas,
@@ -651,7 +677,7 @@ class Training():
                             #pick from 'eval_loss', 'eval_errorrate', 'eval_runtime', 'eval_samples_per_second', 'eval_steps_per_second', 'epoch'
                             metric_for_best_model=self.metric_name,
                             greater_is_better=False,
-                            remove_unused_columns=False,
+                            # remove_unused_columns=False,
                             hub_private_repo=True,
                             **kwargs)
     def train(self):
@@ -667,9 +693,11 @@ class Training():
         try:
             self.trainer.train(**self.train_kwargs)
         except ValueError as e:
-            if 'No valid checkpoint found in output directory' in e.args:
+            if 'No valid checkpoint found in output directory' in e.args[0]:
                 del self.train_kwargs['resume_from_checkpoint']
                 self.trainer.train(**self.train_kwargs)
+            else:
+                print(f"Other ValueError: ({e.args}; {e.add_note()})")
         except Exception as e:
             print(f"unknown exception: ({e})")
     def push(self):
@@ -715,6 +743,7 @@ class Training():
                                             'training_args_fn',
                                             'trainer_fn',
                                             'compute_metrics_fn_name',
+                                            'lora',
                                             ]
         for_trainer_kwargs=[#args to .train(), just what huggingface wants
             'resume_from_checkpoint'
@@ -1083,7 +1112,8 @@ class Nomenclature():
             'modelname',
             'cache_dir',
             'language',
-            'sister_language'
+            'sister_language',
+            'data_file_location',
         ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def datakwargs(self):
@@ -1127,6 +1157,8 @@ class Nomenclature():
                 'iteration',
                 'lora',
                 'quant',
+                'load_in_8bit',
+                'device_map',
             ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
     def trainingkwargs(self):
@@ -1155,6 +1187,7 @@ class Nomenclature():
                 'logging_steps',
                 'save_total_limit',
                 'num_train_epochs',
+                'lora',
                 'push_to_hub'
             ]
         return {a:getattr(self,a) for a in attrs if hasattr(self,a)}
