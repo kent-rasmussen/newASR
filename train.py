@@ -1033,7 +1033,7 @@ class TrainWrapper(object):
                 Demo(self.names)
         if getattr(self.names,'infer',False):
             self.infer()
-    def __init__(self,model_type,trainer_type,my_options):
+    def __init__(self,model_type,trainer_type,my_options,do_later=False):
         my_options.sanitize() # wait until everyting is set to do this
         self.get_names(model_type,trainer_type,my_options.args)
         self.init_debug()
@@ -1043,7 +1043,8 @@ class TrainWrapper(object):
         self.get_trainer()
         #in compute_metrics only:
         self.metric = evaluate.load(self.names.metric_name)
-        self.do_stuff()
+        if not do_later:
+            self.do_stuff()
 class Demo(object):
     def transcribe_module(self,audio):
         return self.inferer(audio,show_standard=True)
