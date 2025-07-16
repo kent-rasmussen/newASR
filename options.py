@@ -23,6 +23,8 @@ def maximal_zulgo_test_options():
         'data_file_prefixes':['lexicon_640','examples_4589']
     }
 def quantization():
+    print("don't use options.quantization()! set quant=True instead")
+    quit()
     return {
         'load_in_8bit':True,
         'device_map':"auto"
