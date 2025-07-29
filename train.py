@@ -1053,9 +1053,9 @@ class TrainWrapper(object):
                         )
     def do_stuff(self):
         if getattr(self.names,'train',False):
-            self.trainer.train()
+            self.train()
         if getattr(self.names,'push_to_hub',False): #token import in train.py
-            self.trainer.push()
+            self.push()
         if getattr(self.names,'demo',False):
             if not hasattr(self,'processor'):
                 self.get_processor()
@@ -1064,13 +1064,21 @@ class TrainWrapper(object):
         if getattr(self.names,'infer',False):
             self.infer()
     def load_and_do_stuff(self):
-        self.get_data_processor_model()
-        if getattr(self.names,'train_adaptor_only',False):
-            self.freeze_all_but_adaptor_layers()
-        self.get_trainer()
-        #in compute_metrics only:
-        self.metric = evaluate.load(self.names.metric_name)
-        self.do_stuff()
+        if getattr(self.names,'optimize',False):
+            self.get_optimizer()
+            self.optimizer.optimize()
+        else:
+            self.get_data_and_processor()
+            self.get_base_model()
+            if getattr(self.names,'train_adaptor_only',False):
+                self.freeze_all_but_adaptor_layers()
+            self.get_trainer()
+            #in compute_metrics only:
+            # was self.names.metric_name
+            metric_names=[#"accuracy", "precision",
+                            "wer", "cer", "ter"]
+            self.metrics = {i: evaluate.load(i) for i in metric_names}
+            self.do_stuff()
     def __init__(self,model_type,trainer_type,my_options,do_later=False):
         my_options.sanitize() # wait until everyting is set to do this
         self.get_names(model_type,trainer_type,my_options.args)
