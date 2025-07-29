@@ -712,6 +712,18 @@ class Training():
         except Exception as e:
             print(f"unknown exception: ({e})")
             raise
+        if getattr(self.names,'train_adaptor_only',False):
+            self.save_adaptor()
+    def save_adaptor(self):
+        from safetensors.torch import save_file as safe_save_file
+        from transformers.models.wav2vec2.modeling_wav2vec2 import WAV2VEC2_ADAPTER_SAFE_FILE
+        import os
+        adapter_file = WAV2VEC2_ADAPTER_SAFE_FILE.format(self.language['iso'])
+        self.fqmodelname_loc
+        adapter_file = os.path.join(self.trainer.args.output_dir, adapter_file)
+        safe_save_file(self.model._get_adapters(),
+                        adapter_file,
+                        metadata={"format": "pt"})
     def push(self):
         self.trainer.push_to_hub(**self.push_kwargs())
         self.processor.push_to_hub(self.modelname, **self.push_kwargs())
