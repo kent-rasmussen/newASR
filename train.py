@@ -841,8 +841,11 @@ class Training():
                             processing_class=self.processor.feature_extractor, #not tokenizer
                         )
 class TrainWrapper(object):
-    def get_data(self,data_tokens):
-        self.data=Data(data_tokens=data_tokens, **self.names.datakwargs())
+    def get_data(self,data_tokens,**kwargs):
+        self.data=Data(data_tokens=data_tokens,
+                     **{**self.names.datakwargs(),
+                         **kwargs
+                         })
     def get_processor(self,data_tokens):
         """Do I need this Processor wrapper? will I ever need a second?
         Hardcoding this here right now seems best, at least for now"""
@@ -965,9 +968,11 @@ class TrainWrapper(object):
                         'pad_token':"<pad>",
                         'word_delimiter_token':"|",
                         }
-            self.get_data(data_tokens)
+            kwargs={
+                    'max_data_rows':10
+                    } if optimizer else {}
+            self.get_data(data_tokens,**kwargs)
             self.get_processor(data_tokens)
-            self.get_base_model()
     def compute_metrics_whisper(self,pred):
         # print("Running train_whisper.compute_metrics")
         # print(f"Running with data {pred} ({type(pred)})")
