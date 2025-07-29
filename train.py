@@ -988,36 +988,36 @@ class TrainWrapper(object):
         label_ids[label_ids == -100] = self.tokenizer.pad_token_id
         # we do not want to group tokens when computing the metrics
         pred_str = self.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-        # with open('metrics_log.txt','a') as f:
-        #     f.write(f"inferred:{pred_str}\n")
         label_str = self.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-        # with open('metrics_log.txt','a') as f:
-        #     f.write(f"should have inferred:{label_str}\n")
-        # with open('metrics_log.txt','a') as f:
-        #     f.write(f"inferred: {pred_str}; correct:{label_str}")
-
-        error = 100 * self.metric.compute(predictions=pred_str, references=label_str)
-        with open('metrics_log.txt','a') as f:
-            for n in range(len(pred_str)):
-                f.write(f"inferred:{pred_str[n]}\n")
-                f.write(f"correct:{label_str[n]}\n")
-            f.write(f"{self.names.metric_name}: {error}\n")
-        return {self.names.metric_name: error}
+        return self.return_computed_metric_values(pred_str,pred_ids,label_str,label_ids)
     def compute_metrics_ctc(self,pred):
         """This needs to be here because the processor may be loaded
         without the train class around it."""
         pred_logits = pred.predictions
         pred_ids = numpy.argmax(pred_logits, axis=-1)
-
         pred.label_ids[pred.label_ids == -100] = self.processor.tokenizer.pad_token_id
-
         pred_str = self.processor.batch_decode(pred_ids)
         # we do not want to group tokens when computing the metrics
         label_str = self.processor.batch_decode(pred.label_ids, group_tokens=False)
-
-        error = self.metric.compute(predictions=pred_str, references=label_str)
-
-        return {self.names.metric_name: error}
+        return self.return_computed_metric_values(pred_str,pred_ids,label_str,pred.label_ids)
+    def return_computed_metric_values(self,pred,pred_id,ref,ref_id):
+        string_metrics=['wer','cer','ter']
+        output={k:v.compute(predictions=pred, references=ref)
+                for k,v in self.metrics.items()
+                    if k in string_metrics}
+        output.update({k:numpy.average(
+                        [v.compute(predictions=pred_id[y], references=ref_id[y])
+                            for y in range(len(pred_id))])
+                        for k,v in self.metrics.items()
+                            if k not in string_metrics
+                    })
+        with open('metrics_log.txt','a') as f:
+            f.write(f"inf:{pred}\n")
+            f.write(f"ref:{ref}\n")
+            for k in output:
+                f.write(f"{k}:{output[k]}; ")
+            f.write(f"\n")
+        return output
     def get_data_collator(self):
         if self.names.processor_parent_fn.__name__ in ['Wav2Vec2BertProcessor',
                                                         'Wav2Vec2Processor']:
