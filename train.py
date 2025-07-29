@@ -749,7 +749,7 @@ class Training():
         return kwargs
     def demo(self):
         d=Demo(self)
-    def __init__(self,**kwargs):
+    def sort_training_kwargs(self,**kwargs):
         not_for_training_arguments_kwargs=[#these are for this module
                                             'fqbasemodelname',
                                             'datasetprettyname',
@@ -824,13 +824,12 @@ class Training():
                 if debug:
                     print(k,kwargs[k],"(just for this Training object)")
                 setattr(self,k,kwargs.pop(k))
-        # for k in [i for i in kwargs if '_fn' in i
-        #                             or i.startswith('model')
-        #                             or i.startswith('data')
-        #                             or i.startswith('processor')
-        #                             or i.startswith('compute')
-        #         ]:
-        #     setattr(self,k,kwargs.pop(k))
+        return kwargs #to training_arguments()
+    def __init__(self,**kwargs):
+        # (not_for_training_arguments_kwargs,
+        # for_trainer_kwargs,
+        kwargs=self.sort_training_kwargs(**kwargs)
+
         self.trainer = self.trainer_fn(model=self.model,
                             args=self.training_arguments(**kwargs),
                             train_dataset=self.data["train"],
