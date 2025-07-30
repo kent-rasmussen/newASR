@@ -960,8 +960,9 @@ class TrainWrapper(object):
             for attr in dir(self.names):
                 if '__' not in attr:
                     print(attr,getattr(self.names,attr))
-    def get_data_processor_model(self):
+    def get_data_and_processor(self,optimizer=False):
         if (getattr(self.names,'train',False) or
+            getattr(self.names,'optimize',False) or
             getattr(self.names,'push_to_hub',False)):
             data_tokens={
                         'unk_token':"<unk>",
@@ -1427,7 +1428,7 @@ class Nomenclature():
                         for g in globs]
                         for i in j
                         ]
-        if self.train:
+        if self.train or self.optimize:
             self.dataset_name()
 def count_cpus():
     #Not sure if this is working; override:
@@ -1448,14 +1449,11 @@ if __name__ == '__main__':
     """‘reload_model’ causes a large download!"""
 
     """Pick one:"""
-    from model_configs import whisper
-    model_type=whisper()
-    model_type.update({'fqbasemodelname':
-                    "kent-rasmussen/whisper-large-v3-cer-hau-Hausa_mcv11x9"})
+    # from model_configs import whisper
+    # model_type=whisper()
+    # model_type.update({'fqbasemodelname':
+    #                 "kent-rasmussen/whisper-large-v3-cer-hau-Hausa_mcv11x9"})
 
-    # from model_configs import mms
-    # model_type=mms()
-    # model_type.update({'fqbasemodelname':"facebook/mms-1b-all"})
 
     print(f"working with model {model_type['fqbasemodelname']}")
     """This is general settings"""
