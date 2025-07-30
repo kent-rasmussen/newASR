@@ -159,7 +159,7 @@ def mms():
     return {
             'fqbasemodelname':"facebook/mms-1b-all",
             'getmodel_fn':Wav2Vec2ForCTC, #for tuned models
-            'train_adaptor_only':True,
+            # 'train_adaptor_only':True,
             'tokenizer_fn':Wav2Vec2CTCTokenizer,
             'feature_extractor_fn':Wav2Vec2FeatureExtractor,
             # 'processor_fn':Wav2Vec2BertProcessor,

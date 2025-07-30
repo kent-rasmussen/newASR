@@ -22,6 +22,18 @@ def maximal_zulgo_test_options():
         'language_iso':'gnd',
         'data_file_prefixes':['lexicon_640','examples_4589']
     }
+def maximal_lexical_zulgo_test_options():
+    return {
+        'dataset_code':'csv',
+        'language_iso':'gnd',
+        'data_file_prefixes':['lexicon_640']
+    }
+def maximal_examples_zulgo_test_options():
+    return {
+        'dataset_code':'csv',
+        'language_iso':'gnd',
+        'data_file_prefixes':['examples_4589']
+    }
 def quantization():
     print("don't use options.quantization()! set quant=True instead")
     quit()
