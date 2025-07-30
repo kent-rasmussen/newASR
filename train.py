@@ -738,7 +738,7 @@ class Training():
                     f"{self.language['mcv_code']}, split: test" if 'mcv_code' in self.language else "",
                     "language": self.language['iso'],
                     # a 'pretty' name for your model
-                    "model_name": f"{self.modelname} "
+                    "model_name": f"{self.modelprettyname} "
                                 f"{self.language['iso']} - {self.language['name']}",
                     "finetuned_from": self.fqbasemodel,
                     "tasks": "automatic-speech-recognition",
@@ -764,7 +764,7 @@ class Training():
                                             'data_collator',
                                             'compute_metrics',
                                             'metric_name',
-                                            'modelname',
+                                            'modelprettyname',
                                             'data_collator_fn',
                                             'training_args_fn',
                                             'trainer_fn',
@@ -1216,6 +1216,7 @@ class Nomenclature():
         attrs=['fqbasemodelname',
                 'fqmodelname_loc',
                 'datasetprettyname',
+                'modelprettyname',
                 'fqdatasetname',
                 'resume_from_checkpoint',
                 'data_collator_fn',
