@@ -1004,9 +1004,14 @@ class TrainWrapper(object):
         return self.return_computed_metric_values(pred_str,pred_ids,label_str,pred.label_ids)
     def return_computed_metric_values(self,pred,pred_id,ref,ref_id):
         string_metrics=['wer','cer','ter']
+        simple_scores=['wer','cer']
         output={k:v.compute(predictions=pred, references=ref)
                 for k,v in self.metrics.items()
-                    if k in string_metrics}
+                    if k in simple_scores}
+        output.update({k:v.compute(predictions=pred, references=ref)['score']
+                for k,v in self.metrics.items()
+                    if k in string_metrics and k not in simple_scores})
+        #use this for accuracy and precision, if those make sense some day:
         output.update({k:numpy.average(
                         [v.compute(predictions=pred_id[y], references=ref_id[y])
                             for y in range(len(pred_id))])
