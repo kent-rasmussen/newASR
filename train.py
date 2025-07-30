@@ -740,7 +740,7 @@ class Training():
                     # a 'pretty' name for your model
                     "model_name": f"{self.modelprettyname} "
                                 f"{self.language['iso']} - {self.language['name']}",
-                    "finetuned_from": self.fqbasemodel,
+                    "finetuned_from": self.fqbasemodelname,
                     "tasks": "automatic-speech-recognition",
                 }
         try:
