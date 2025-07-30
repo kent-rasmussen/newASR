@@ -517,8 +517,7 @@ class BaseModel():
         def make_inputs_require_grad(module, input, output):
             output.requires_grad_(True)
         if self.getmodel_fn.__name__ == "Wav2Vec2ForCTC":
-            self.model.encoder.conv1.register_forward_hook(
-                                                    make_inputs_require_grad)
+            print(vars(self.model)) #self.model.model isn't there
         else:
             self.model.model.encoder.conv1.register_forward_hook(
                                                     make_inputs_require_grad)
