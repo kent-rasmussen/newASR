@@ -1044,7 +1044,8 @@ class TrainWrapper(object):
         self.model.freeze_base_model()
         adapter_weights = self.model._get_adapters()
         for param in adapter_weights.values():
-            param.requires_grad = True
+            if param.dtype in [torch.float32]:
+                param.requires_grad = True
         print("Froze all but adaptor layers")
     def get_trainer(self):
         if (getattr(self.names,'train',False) or
