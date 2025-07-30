@@ -734,7 +734,8 @@ class Training():
                     "dataset_tags": self.fqdatasetname,
                     # a 'pretty' name for the training dataset
                     "dataset": self.datasetprettyname,
-                    "dataset_args": f"config: {self.language['mcv_code']}, split: test",
+                    "dataset_args": "config: "
+                    f"{self.language['mcv_code']}, split: test" if 'mcv_code' in self.language else "",
                     "language": self.language['iso'],
                     # a 'pretty' name for your model
                     "model_name": f"{self.modelname} "
