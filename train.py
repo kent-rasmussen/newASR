@@ -516,9 +516,7 @@ class BaseModel():
                         gradient_checkpointing_kwargs={'use_reentrant':False})
         def make_inputs_require_grad(module, input, output):
             output.requires_grad_(True)
-        if self.getmodel_fn.__name__ == "Wav2Vec2ForCTC":
-            print(vars(self.model)) #self.model.model isn't there
-        else:
+        if self.getmodel_fn.__name__ != "Wav2Vec2ForCTC":
             self.model.model.encoder.conv1.register_forward_hook(
                                                     make_inputs_require_grad)
     def quant_config(self):
