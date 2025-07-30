@@ -713,7 +713,7 @@ class Training():
         except Exception as e:
             print(f"unknown exception: ({e})")
             raise
-        if getattr(self.names,'train_adaptor_only',False):
+        if getattr(self,'train_adaptor_only',False):
             self.save_adaptor()
     def save_adaptor(self):
         from safetensors.torch import save_file as safe_save_file
@@ -757,6 +757,7 @@ class Training():
                                             'fqdatasetname',
                                             'fqmodelname_loc',
                                             'model',
+                                            'train_adaptor_only',
                                             'processor',
                                             'data',
                                             'data_collator',
@@ -1222,6 +1223,7 @@ class Nomenclature():
                 'compute_metrics_fn_name',
                 'training_args_fn',
                 'trainer_fn',
+                'train_adaptor_only',
                 'predict_with_generate',
                 'per_device_train_batch_size',
                 'dataloader_pin_memory',
