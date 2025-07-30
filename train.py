@@ -735,7 +735,7 @@ class Training():
                     # a 'pretty' name for the training dataset
                     "dataset": self.datasetprettyname,
                     "dataset_args": "config: "
-                    f"{self.language['mcv_code']}, split: test" if 'mcv_code' in self.language else "",
+                    f"{self.language['mcv_code']}, split: test" if 'mcv_code' in self.language else "config: csv",
                     "language": self.language['iso'],
                     # a 'pretty' name for your model
                     "model_name": f"{self.modelprettyname} "
