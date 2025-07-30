@@ -516,8 +516,12 @@ class BaseModel():
                         gradient_checkpointing_kwargs={'use_reentrant':False})
         def make_inputs_require_grad(module, input, output):
             output.requires_grad_(True)
-
-        self.model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
+        if self.getmodel_fn == Wav2Vec2ForCTC:
+            self.model.encoder.conv1.register_forward_hook(
+                                                    make_inputs_require_grad)
+        else:
+            self.model.model.encoder.conv1.register_forward_hook(
+                                                    make_inputs_require_grad)
     def quant_config(self):
         # import intel_extension_for_pytorch as ipex
         from transformers import BitsAndBytesConfig
